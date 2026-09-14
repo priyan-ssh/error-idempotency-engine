@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Idempotency Engine — Architecture Spec v1</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" id="prism-dark">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" id="prism-light" disabled>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<style>
+:root, html[data-theme="dark"] {
+  --bg: #0a0a0f; --bg-elev: #13131c; --bg-code: #0d0d15; --bg-card: #14141e;
+  --bg-sidebar: #08080d; --bg-th: #0f0f17;
+  --border: #22222f; --border-bright: #2e2e40;
+  --text: #e6e6ef; --text-body: #d0d0dc; --text-dim: #9494a8; --text-faint: #6b6b80;
+  --accent: #4a9eff; --accent-soft: rgba(74,158,255,0.08); --accent-soft-hover: rgba(74,158,255,0.06);
+  --accent-2: #a855f7; --success: #10b981; --warn: #f59e0b; --danger: #ef4444;
+  --h1-gradient-from: #fff; --h1-gradient-to: #4a9eff;
+  --inline-code-bg: rgba(74,158,255,0.08); --inline-code-border: rgba(74,158,255,0.15); --inline-code-text: #9dc4ff;
+  --scrollbar: #222; --hover-row: rgba(74,158,255,0.03); --mermaid-bg: #0d0d15; --copy-bg: rgba(255,255,255,0.05);
+}
+html[data-theme="light"] {
+  --bg: #fafafa; --bg-elev: #ffffff; --bg-code: #f5f5f7; --bg-card: #ffffff;
+  --bg-sidebar: #f0f0f3; --bg-th: #f0f0f3;
+  --border: #e5e5ea; --border-bright: #d1d1d6;
+  --text: #1a1a1f; --text-body: #2a2a30; --text-dim: #55555f; --text-faint: #8e8e93;
+  --accent: #0066cc; --accent-soft: rgba(0,102,204,0.08); --accent-soft-hover: rgba(0,102,204,0.06);
+  --accent-2: #8e44ad; --success: #059669; --warn: #d97706; --danger: #dc2626;
+  --h1-gradient-from: #1a1a1f; --h1-gradient-to: #0066cc;
+  --inline-code-bg: rgba(0,102,204,0.08); --inline-code-border: rgba(0,102,204,0.2); --inline-code-text: #0066cc;
+  --scrollbar: #d1d1d6; --hover-row: rgba(0,102,204,0.04); --mermaid-bg: #fafafa; --copy-bg: rgba(0,0,0,0.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  background: var(--bg); color: var(--text);
+  line-height: 1.65; font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
+}
+code, pre, .mono { font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-size: 13px; }
+
+.layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+.sidebar {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  border-right: 1px solid var(--border); padding: 24px 0;
+  background: var(--bg-sidebar); transition: background 0.2s;
+}
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+.sidebar-header {
+  padding: 0 20px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.sidebar-title {
+  font-size: 13px; font-weight: 600; color: var(--text-dim);
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.sidebar nav a {
+  display: block; padding: 7px 20px; color: var(--text-dim);
+  text-decoration: none; font-size: 13px;
+  border-left: 2px solid transparent; transition: all 0.12s;
+}
+.sidebar nav a:hover {
+  color: var(--text); background: var(--accent-soft-hover);
+  border-left-color: var(--accent);
+}
+.sidebar nav a.sub { padding-left: 36px; font-size: 12px; color: var(--text-faint); }
+.toc-section {
+  padding: 12px 20px 4px; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-faint); font-weight: 600;
+}
+
+.theme-toggle {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: transparent; border: 1px solid var(--border-bright);
+  color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.theme-toggle svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+html[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+html[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+html[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+html[data-theme="light"] .theme-toggle .icon-moon { display: block; }
+
+.main { max-width: 980px; padding: 56px 64px 120px; }
+
+h1 {
+  font-size: 38px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px;
+  background: linear-gradient(135deg, var(--h1-gradient-from) 0%, var(--h1-gradient-to) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.subtitle { color: var(--text-dim); font-size: 16px; margin-bottom: 8px; }
+.meta {
+  color: var(--text-faint); font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+  margin-bottom: 40px; padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+h2 {
+  font-size: 24px; font-weight: 700; margin: 64px 0 20px; letter-spacing: -0.01em;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 12px;
+}
+h2 .num { font-family: "JetBrains Mono", monospace; color: var(--accent); font-size: 14px; font-weight: 500; }
+h3 { font-size: 17px; font-weight: 600; margin: 36px 0 14px; color: var(--text); }
+h4 {
+  font-size: 14px; font-weight: 600; margin: 24px 0 10px;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;
+}
+p { margin-bottom: 14px; color: var(--text-body); }
+ul, ol { margin: 12px 0 16px 24px; }
+li { margin-bottom: 6px; color: var(--text-body); }
+strong { color: var(--text); font-weight: 600; }
+html[data-theme="light"] strong { color: #000; }
+em { color: var(--text-dim); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+pre {
+  background: var(--bg-code); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px 20px; overflow-x: auto;
+  margin: 16px 0; position: relative; line-height: 1.55;
+  transition: background 0.2s, border-color 0.2s;
+}
+pre code { background: none; padding: 0; }
+code:not([class*="language-"]) {
+  background: var(--inline-code-bg); border: 1px solid var(--inline-code-border);
+  color: var(--inline-code-text); padding: 1px 6px; border-radius: 4px; font-size: 12.5px;
+}
+pre[data-label]::before {
+  content: attr(data-label); position: absolute; top: 0; right: 0;
+  background: var(--border-bright); color: var(--text-dim);
+  font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+  padding: 4px 10px; border-radius: 0 8px 0 6px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.copy-btn {
+  position: absolute; top: 8px; right: 10px;
+  background: var(--copy-bg); border: 1px solid var(--border-bright);
+  color: var(--text-dim); padding: 3px 8px; border-radius: 4px;
+  font-size: 10px; cursor: pointer; opacity: 0;
+  transition: opacity 0.15s; font-family: "JetBrains Mono", monospace;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+pre:hover .copy-btn { opacity: 1; }
+.copy-btn:hover { background: var(--accent-soft); color: var(--accent); }
+pre[data-label] .copy-btn { top: 32px; }
+
+table {
+  width: 100%; border-collapse: collapse; margin: 18px 0;
+  font-size: 13.5px; border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+}
+th {
+  text-align: left; padding: 10px 14px;
+  background: var(--bg-th); color: var(--text-dim);
+  font-weight: 600; font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-body); vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--hover-row); }
+td code { font-size: 12px; }
+
+.callout {
+  border-left: 3px solid; padding: 14px 18px; margin: 18px 0;
+  border-radius: 0 8px 8px 0; background: rgba(128,128,128,0.04);
+}
+.callout-title {
+  font-weight: 600; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 6px;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout.info { border-color: var(--accent); } .callout.info .callout-title { color: var(--accent); }
+.callout.success { border-color: var(--success); } .callout.success .callout-title { color: var(--success); }
+.callout.warn { border-color: var(--warn); } .callout.warn .callout-title { color: var(--warn); }
+.callout.danger { border-color: var(--danger); } .callout.danger .callout-title { color: var(--danger); }
+
+.case-grid, .path-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
+.case-card, .path-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.case-card { border-top: 3px solid; }
+.case-card.c1 { border-top-color: var(--accent); }
+.case-card.c2 { border-top-color: var(--accent-2); }
+.case-card.c3 { border-top-color: var(--warn); }
+.case-card .badge {
+  display: inline-block; font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px; padding: 2px 8px; border-radius: 4px;
+  margin-bottom: 10px; letter-spacing: 0.04em;
+  text-transform: uppercase; font-weight: 600;
+}
+.case-card.c1 .badge { background: rgba(74,158,255,0.15); color: var(--accent); }
+.case-card.c2 .badge { background: rgba(168,85,247,0.15); color: var(--accent-2); }
+.case-card.c3 .badge { background: rgba(245,158,11,0.15); color: var(--warn); }
+.case-card h4 { margin: 0 0 8px; color: var(--text); font-size: 14px; text-transform: none; letter-spacing: 0; }
+.case-card p { font-size: 13px; color: var(--text-dim); margin: 0; line-height: 1.5; }
+
+.path-card { position: relative; overflow: hidden; }
+.path-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.path-card.a::before { background: var(--success); }
+.path-card.b::before { background: var(--warn); }
+.path-card.c::before { background: var(--danger); }
+.path-card .label {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  font-weight: 700; letter-spacing: 0.08em; margin-bottom: 10px;
+}
+.path-card.a .label { color: var(--success); }
+.path-card.b .label { color: var(--warn); }
+.path-card.c .label { color: var(--danger); }
+.path-card .cond { font-size: 12.5px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.45; }
+.path-card .metrics { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.metric { display: flex; justify-content: space-between; font-size: 12px; font-family: "JetBrains Mono", monospace; }
+.metric .k { color: var(--text-faint); }
+.metric .v { color: var(--text); }
+.metric .v.no { color: var(--danger); }
+.metric .v.yes { color: var(--success); }
+.metric .v.partial { color: var(--warn); }
+.path-card .time {
+  font-family: "JetBrains Mono", monospace; font-size: 18px;
+  font-weight: 700; color: var(--text); padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.path-card .time small { font-size: 11px; color: var(--text-faint); font-weight: 400; margin-left: 6px; }
+
+.mermaid {
+  background: var(--mermaid-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; margin: 20px 0;
+  text-align: center; overflow-x: auto;
+  transition: background 0.2s, border-color 0.2s;
+}
+.mermaid svg { max-width: 100%; height: auto; }
+
+.invariants { list-style: none; margin: 16px 0; padding: 0; }
+.invariants li {
+  display: flex; gap: 14px; padding: 10px 0;
+  border-bottom: 1px solid var(--border); margin: 0;
+}
+.invariants li:last-child { border-bottom: none; }
+.invariants .n {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  color: var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--accent-soft); border-radius: 4px;
+  padding: 2px 8px; height: fit-content; flex-shrink: 0;
+  min-width: 28px; text-align: center;
+}
+
+.flow { counter-reset: step; margin: 20px 0; }
+.flow-step {
+  position: relative; padding: 16px 20px 16px 56px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 10px;
+}
+.flow-step::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; left: 16px; top: 16px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); border: 1px solid var(--accent-soft);
+  color: var(--accent); font-family: "JetBrains Mono", monospace;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.flow-step h5 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.flow-step p { font-size: 13px; color: var(--text-dim); margin: 0; }
+
+details {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 18px; margin: 12px 0;
+}
+details summary {
+  cursor: pointer; font-weight: 600; color: var(--text-dim);
+  font-size: 13px; list-style: none;
+  display: flex; align-items: center; gap: 8px;
+}
+details summary::before {
+  content: "▶"; font-size: 9px; color: var(--accent);
+  transition: transform 0.15s;
+}
+details[open] summary::before { transform: rotate(90deg); }
+details[open] summary { margin-bottom: 12px; }
+details > *:not(summary) { padding-left: 18px; }
+
+/* ═══ TABLE CARDS ═══ */
+.table-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
+.table-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 16px 18px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.table-card.t-core { border-left-color: var(--accent); }
+.table-card.t-meta { border-left-color: var(--accent-2); }
+.table-card.t-support { border-left-color: var(--success); }
+.table-card .t-name {
+  font-family: "JetBrains Mono", monospace; font-size: 13px;
+  font-weight: 700; color: var(--text); margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.table-card .t-entity {
+  font-size: 12px; color: var(--text-dim);
+  font-style: italic; margin-bottom: 10px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+.table-card .t-why { font-size: 13px; color: var(--text-body); line-height: 1.5; margin-bottom: 8px; }
+.table-card .t-why:last-child { margin-bottom: 0; }
+.table-card .t-why strong { color: var(--text); }
+html[data-theme="light"] .table-card .t-why strong { color: #000; }
+.table-card .t-missing {
+  font-size: 12px; color: var(--danger);
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.table-card .t-missing::before {
+  content: "Without it: "; font-weight: 600;
+  color: var(--text-faint); text-transform: uppercase;
+  font-size: 10.5px; letter-spacing: 0.05em; margin-right: 4px;
+}
+
+/* ═══ PIPELINE VISUAL ═══ */
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px; margin: 24px 0;
+  align-items: stretch;
+}
+.pipeline-stage {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 12px;
+  position: relative; display: flex; flex-direction: column;
+}
+.pipeline-stage::after {
+  content: "→"; position: absolute;
+  right: -16px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint); font-size: 18px;
+  font-weight: 700;
+}
+.pipeline-stage:last-child::after { display: none; }
+.pipeline-stage .p-label {
+  font-family: "JetBrains Mono", monospace; font-size: 10px;
+  font-weight: 700; color: var(--accent);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.pipeline-stage.p1 .p-label { color: var(--text-faint); }
+.pipeline-stage.p2 .p-label { color: var(--text-dim); }
+.pipeline-stage.p3 .p-label { color: var(--accent); }
+.pipeline-stage.p4 .p-label { color: var(--accent-2); }
+.pipeline-stage.p5 .p-label { color: var(--success); }
+.pipeline-stage .p-content {
+  font-family: "JetBrains Mono", monospace; font-size: 11.5px;
+  color: var(--text); line-height: 1.4;
+  word-break: break-word; flex-grow: 1;
+}
+.pipeline-stage .p-content .dim { color: var(--text-dim); font-size: 10.5px; display: block; margin-top: 4px; }
+.pipeline-stage .p-store {
+  font-family: "JetBrains Mono", monospace; font-size: 10px;
+  color: var(--text-faint); margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--border);
+  letter-spacing: 0.03em;
+}
+
+/* ═══ ANCHOR CONTAINER VISUAL ═══ */
+.anchor-viz {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; margin: 24px 0;
+}
+.anchor-viz .a-title {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  font-weight: 700; color: var(--accent);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.anchor-box {
+  border: 2px solid var(--accent); border-radius: 8px;
+  padding: 16px; position: relative; margin-top: 20px;
+}
+.anchor-box .a-tag {
+  position: absolute; top: -10px; left: 16px;
+  background: var(--bg-card); padding: 0 8px;
+  font-family: "JetBrains Mono", monospace; font-size: 10px;
+  font-weight: 700; color: var(--accent);
+  letter-spacing: 0.08em;
+}
+.anchor-box .a-shape {
+  font-family: "JetBrains Mono", monospace; font-size: 14px;
+  color: var(--text); margin-bottom: 4px; font-weight: 600;
+}
+.anchor-box .a-meta {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  color: var(--text-dim); margin-bottom: 16px;
+  word-break: break-all;
+}
+.variant-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.variant-box {
+  background: var(--bg-elev); border: 1px solid var(--border-bright);
+  border-radius: 6px; padding: 12px;
+}
+.variant-box .v-tag {
+  font-family: "JetBrains Mono", monospace; font-size: 10px;
+  font-weight: 700; color: var(--accent-2);
+  letter-spacing: 0.06em; margin-bottom: 6px;
+}
+.variant-box .v-context {
+  font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+  color: var(--text-dim); margin-bottom: 8px;
+  line-height: 1.45;
+}
+.variant-box .v-solution {
+  font-size: 12px; color: var(--text);
+  padding-top: 8px; border-top: 1px solid var(--border);
+  line-height: 1.45;
+}
+.variant-box .v-solution::before {
+  content: "→ "; color: var(--success); font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .main { padding: 32px 24px 80px; }
+  .case-grid, .path-grid, .table-cards, .variant-row { grid-template-columns: 1fr; }
+  .pipeline { grid-template-columns: 1fr; }
+  .pipeline-stage::after { content: "↓"; right: 50%; top: auto; bottom: -16px; transform: translateX(50%); }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-title">Idempotency Engine v1</div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+  <nav>
+    <div class="toc-section">Overview</div>
+    <a href="#what">0 · What this is</a>
+    <a href="#arch">1 · Architecture</a>
+    <a href="#cases">2 · The three cases</a>
+    <div class="toc-section">Data</div>
+    <a href="#schema">3 · Schema</a>
+    <a href="#pipeline" class="sub">3.1 · Raw line to solution</a>
+    <a href="#tables" class="sub">3.2 · The eight tables</a>
+    <a href="#anchor" class="sub">3.3 · What is an anchor?</a>
+    <a href="#relations" class="sub">3.4 · Relationships</a>
+    <div class="toc-section">Ingestion</div>
+    <a href="#paths">4 · Ingestion paths</a>
+    <a href="#payload">4.1 · Payload shape</a>
+    <div class="toc-section">Engine</div>
+    <a href="#critical">5 · Critical section</a>
+    <a href="#canon">6 · Canonicalization</a>
+    <a href="#context">7 · Context</a>
+    <div class="toc-section">Solutions</div>
+    <a href="#versioning">8 · Solution versioning</a>
+    <a href="#linking">9 · Linking</a>
+    <div class="toc-section">Operational</div>
+    <a href="#config">10 · Config engine</a>
+    <a href="#embedding">11 · Embedding plugin</a>
+    <a href="#api">12 · API surface</a>
+    <a href="#mcp">13 · MCP surface</a>
+    <div class="toc-section">Reference</div>
+    <a href="#invariants">14 · Invariants</a>
+    <a href="#defaults">15 · Defaults</a>
+    <a href="#deferred">16 · Deferred</a>
+    <a href="#not">17 · What this is not</a>
+  </nav>
+</aside>
+
+<main class="main">
+
+<h1>The Idempotency Engine</h1>
+<div class="subtitle">A dev-time memory for errors, problems, and decisions.</div>
+<div class="meta">Architecture Spec · v1 (Final) · collapse · discriminate · relate · version</div>
+
+<h2 id="what"><span class="num">0</span> What this system is</h2>
+
+<p>A local RAG that accumulates what you and your agents learn while developing. When an error appears, the system either returns a known solution or records a new entry for future lookup.</p>
+
+<div class="callout info">
+  <div class="callout-title">Not observability</div>
+  <p>No alerting, no suppression, no on-call. It is a memory. It runs when you query it, not when something fires.</p>
+</div>
+
+<div class="case-grid">
+  <div class="case-card c1">
+    <span class="badge">Case 1</span>
+    <h4>Discriminate</h4>
+    <p>Same text, different cause → different fixes. Anchor groups by shape; variants discriminate by context.</p>
+  </div>
+  <div class="case-card c2">
+    <span class="badge">Case 2</span>
+    <h4>Relate</h4>
+    <p>Different text, same fix. Hashing collapses structurally similar; linking bridges distant wordings.</p>
+  </div>
+  <div class="case-card c3">
+    <span class="badge">Case 3b</span>
+    <h4>Version</h4>
+    <p>Same text, same context, fix changes over time. Solutions are versioned; one current per variant.</p>
+  </div>
+</div>
+
+<h4>Three entry kinds</h4>
+<table>
+  <thead><tr><th>Kind</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><code>error</code></td><td>A failure — log line, stack trace, command output</td></tr>
+    <tr><td><code>problem</code></td><td>A statement of what you're working on — "hibernation fails on wake"</td></tr>
+    <tr><td><code>decision</code></td><td>A recorded choice — "chose pipewire over pulseaudio"</td></tr>
+  </tbody>
+</table>
+
+<p>All three share the same schema, pipeline, and retrieval surface.</p>
+
+<div class="callout success">
+  <div class="callout-title">Core design principles</div>
+  <p><strong>One API, many clients.</strong> The C# Ingest API is the source of truth. Watcher, MCP, CLI, and any future dashboard are clients. MCP is the agent adapter — not a gateway.</p>
+  <p style="margin-top:8px"><strong>Idempotency is layered.</strong> HTTP event IDs, unique constraints, advisory lock, optimistic checks, and peek-before-embed. Each layer catches what the previous missed.</p>
+</div>
+
+<h2 id="arch"><span class="num">1</span> Architecture</h2>
+
+<div class="mermaid">
+flowchart TB
+    subgraph Sources["Clients"]
+        WATCHER["Go Watcher"]
+        MCP["MCP Server"]
+        CLI["CLI"]
+        DASH["React Dashboard"]
+    end
+
+    subgraph API["Ingest API"]
+        ING1["POST /ingest"]
+        ING2["POST /ingest/sync"]
+        LOOK["GET /lookup"]
+        LISTEN["WS /events"]
+    end
+
+    subgraph Core["Idempotency Engine"]
+        IDEM["Idempotency Gate"]
+        PEEK["Peek"]
+        CRIT["Critical Section"]
+        LINKER["Linker"]
+        SWEEP["Linker Sweep"]
+    end
+
+    subgraph PG["Postgres"]
+        T0[("ProcessedIngests")]
+        T1[("ProcessedIncidents")]
+        T2[("IncidentVariants")]
+        T3[("VariantSolutions")]
+        T4[("IncidentLinks")]
+        T5[("Domains")]
+    end
+
+    JOURNAL["journalctl"] --> WATCHER
+    WATCHER --> ING1
+    AGENT["AI Agent"] --> MCP
+    MCP --> ING2
+    HUMAN["You"] --> CLI
+    CLI --> ING2
+
+    ING1 --> IDEM
+    ING2 --> IDEM
+    IDEM --> PEEK
+    PEEK --> CRIT
+    CRIT --> T1
+    CRIT --> T2
+    CRIT --> T0
+    CRIT -.->|NOTIFY| LINKER
+    LINKER --> T4
+    SWEEP --> T4
+
+    classDef client fill:#1e3a5f,stroke:#4a9eff,stroke-width:2px,color:#fff
+    classDef api fill:#2d1b4e,stroke:#a855f7,stroke-width:2px,color:#fff
+    classDef core fill:#4a1d1d,stroke:#ef4444,stroke-width:2px,color:#fff
+    classDef db fill:#1a3d2e,stroke:#10b981,stroke-width:2px,color:#fff
+    class WATCHER,CLI client
+    class DASH client
+    class MCP,AGENT api
+    class ING1,ING2,LOOK,LISTEN api
+    class IDEM,PEEK,CRIT,LINKER,SWEEP core
+    class T0,T1,T2,T3,T4,T5 db
+</div>
+
+<h2 id="cases"><span class="num">2</span> The three cases</h2>
+
+<div class="mermaid">
+flowchart TB
+    subgraph C1["Case 1 — Same text, different cause"]
+        direction TB
+        E1["connection refused"] --> A1["ANCHOR<br/>kind=error, domain=postgres"]
+        A1 --> V1["variant: service not started"]
+        A1 --> V2["variant: firewall blocking"]
+        A1 --> V3["variant: wrong port"]
+        V1 --> S1["solution: systemctl start"]
+        V2 --> S2["solution: open port 5432"]
+        V3 --> S3["solution: fix DB_PORT"]
+    end
+
+    subgraph C2["Case 2 — Different text, same fix"]
+        direction TB
+        E2a["Stored proc A not present"] --> A2a["ANCHOR A"]
+        E2b["Stored proc B not present"] --> A2a
+        E2c["Procedure Z does not exist"] --> A2b["ANCHOR B"]
+        A2a -.->|suggested link| A2b
+    end
+
+    subgraph C3["Case 3b — Fix changes over time"]
+        direction TB
+        E3["hibernation fails"] --> A3["ANCHOR"]
+        A3 --> V3b["VARIANT"]
+        V3b --> SA["Solution A superseded"]
+        V3b --> SB["Solution B superseded"]
+        V3b --> SC["Solution C CURRENT"]
+    end
+</div>
+
+<h2 id="schema"><span class="num">3</span> Data model</h2>
+
+<p>Eight tables. Four model the entities of the system, two are metadata, one gates ingestion, one logs failures. This section explains each in plain terms before the SQL.</p>
+
+<h3 id="pipeline">3.1 · Raw line to solution — the pipeline</h3>
+
+<p>A concrete example, end to end. The raw text is what a log produces. Everything after it is stored.</p>
+
+<div class="pipeline">
+  <div class="pipeline-stage p1">
+    <div class="p-label">Raw line</div>
+    <div class="p-content">psql: connection to localhost:5432 failed: Connection refused
+      <span class="dim">specific, one occurrence</span>
+    </div>
+    <div class="p-store">Not stored</div>
+  </div>
+  <div class="pipeline-stage p2">
+    <div class="p-label">Canonicalize</div>
+    <div class="p-content">connection refused
+      <span class="dim">rules strip variables</span>
+    </div>
+    <div class="p-store">Not stored</div>
+  </div>
+  <div class="pipeline-stage p3">
+    <div class="p-label">Anchor</div>
+    <div class="p-content">sha256("connection refused")
+      <span class="dim">the shape, one row</span>
+    </div>
+    <div class="p-store">ProcessedIncidents</div>
+  </div>
+  <div class="pipeline-stage p4">
+    <div class="p-label">Variant</div>
+    <div class="p-content">context: service down
+      <span class="dim">specific cause</span>
+    </div>
+    <div class="p-store">IncidentVariants</div>
+  </div>
+  <div class="pipeline-stage p5">
+    <div class="p-label">Solution</div>
+    <div class="p-content">systemctl start postgres
+      <span class="dim">the fix</span>
+    </div>
+    <div class="p-store">VariantSolutions</div>
+  </div>
+</div>
+
+<h3 id="tables">3.2 · The eight tables, explained</h3>
+
+<div class="table-cards">
+
+  <div class="table-card t-core">
+    <div class="t-name">ProcessedIncidents</div>
+    <div class="t-entity">Entity: an anchor — a generalized error shape</div>
+    <div class="t-why"><strong>Why it exists:</strong> this is the collapse layer. Many raw lines that mean the same thing become one row here. Identity is <code>(kind, domain, shape_hash, shape_version)</code>.</div>
+    <div class="t-why">Holds <code>error_embedding</code> for cross-anchor linking, and <code>shape_template</code> for humans.</div>
+    <div class="t-missing">every raw line would be its own row. Retrieval would return hundreds of duplicates for the same underlying issue.</div>
+  </div>
+
+  <div class="table-card t-core">
+    <div class="t-name">IncidentVariants</div>
+    <div class="t-entity">Entity: a variant — a specific cause under an anchor</div>
+    <div class="t-why"><strong>Why it exists:</strong> this is the discriminate layer. Same error text, different root cause → different variants. Identity is <code>(incident_id, context_fingerprint)</code>.</div>
+    <div class="t-why">Holds <code>context_embedding</code> for semantic matching, <code>occurrence_count</code> for volume, <code>status</code> for review, <code>merged_by_embedding</code> for audit.</div>
+    <div class="t-missing">one anchor would carry one solution. You couldn't distinguish "connection refused because service is down" from "connection refused because firewall is blocking".</div>
+  </div>
+
+  <div class="table-card t-core">
+    <div class="t-name">VariantSolutions</div>
+    <div class="t-entity">Entity: a solution — a fix, versioned</div>
+    <div class="t-why"><strong>Why it exists:</strong> this is the versioning layer. The same variant can have had multiple solutions over time. One row per solution ever recorded; the current one is the row with <code>superseded_at IS NULL</code>.</div>
+    <div class="t-why">Holds <code>superseded_reason</code> and <code>verified</code>.</div>
+    <div class="t-missing">you'd overwrite solutions and lose history. No way to know the old fix stopped working or why.</div>
+  </div>
+
+  <div class="table-card t-core">
+    <div class="t-name">IncidentLinks</div>
+    <div class="t-entity">Entity: a relation — "these anchors are probably the same issue"</div>
+    <div class="t-why"><strong>Why it exists:</strong> this is the relate layer. Different wordings of the same underlying problem become different anchors. The link bridges them.</div>
+    <div class="t-why">Kind is <code>suggested</code>, <code>confirmed</code>, or <code>rejected</code>. Auto-linking is within-kind only; cross-kind is explicit.</div>
+    <div class="t-missing">a query for one wording would miss the other. Four disconnected anchors when they're actually one issue.</div>
+  </div>
+
+  <div class="table-card t-meta">
+    <div class="t-name">Domains</div>
+    <div class="t-entity">Metadata: a problem area namespace</div>
+    <div class="t-why"><strong>Why it exists:</strong> every anchor belongs to exactly one domain (<code>hibernation</code>, <code>postgres</code>, <code>sound</code>). Domain is part of the anchor's identity, so the same error text in two domains is two different anchors.</div>
+    <div class="t-why">Holds per-domain <code>shape_version</code>. Bump the rules, get new anchors without invalidating old ones.</div>
+    <div class="t-missing">no way to scope rules, rate limiting, or retrieval by problem area.</div>
+  </div>
+
+  <div class="table-card t-meta">
+    <div class="t-name">SystemConfig</div>
+    <div class="t-entity">Metadata: global key-value settings</div>
+    <div class="t-why"><strong>Why it exists:</strong> holds things that aren't per-domain and don't deserve their own table: <code>active_embedding_model</code>, <code>lock_budget_ms</code>, <code>linker_last_checkpoint</code>.</div>
+    <div class="t-why">The checkpoint especially needs to live in the DB so a restart doesn't lose the sweep's place.</div>
+    <div class="t-missing">scattered config in env vars or hardcoded constants.</div>
+  </div>
+
+  <div class="table-card t-support">
+    <div class="t-name">ProcessedIngests</div>
+    <div class="t-entity">Support: the idempotency gate</div>
+    <div class="t-why"><strong>Why it exists:</strong> retries. If the watcher POSTs a batch, the API commits, and the response is lost, the watcher retries. Without this table, the retry would double-count <code>occurrence_count</code>.</div>
+    <div class="t-why">Every count increment is paired with an insert here in the same transaction.</div>
+    <div class="t-missing">the system's core guarantee — remember things accurately — is violated the moment a network hiccup causes a retry.</div>
+  </div>
+
+  <div class="table-card t-support">
+    <div class="t-name">SolutionFailures</div>
+    <div class="t-entity">Support: append-only failure log</div>
+    <div class="t-why"><strong>Why it exists:</strong> "I tried this solution and it didn't work." Records a specific observation about a specific solution on a specific variant.</div>
+    <div class="t-why">Does not automatically supersede the solution — that's a human/agent decision. Provides a trail for revising solutions later.</div>
+    <div class="t-missing">solutions with no track record. A fix that's failed five times would look as good as one that's worked fifty times.</div>
+  </div>
+
+</div>
+
+<h3 id="anchor">3.3 · What is an anchor?</h3>
+
+<p>An anchor <strong>is</strong> a generalized error message — but "generalized" is a specific, rule-driven process, not an intuition. An anchor is the message after the domain's rules have stripped its variables.</p>
+
+<div class="anchor-viz">
+  <div class="a-title">The anchor as a container</div>
+
+  <div class="anchor-box">
+    <div class="a-tag">ANCHOR — ProcessedIncidents</div>
+    <div class="a-shape">"connection refused"</div>
+    <div class="a-meta">kind=error · domain=postgres · shape_hash=a3f... · shape_version=v1</div>
+
+    <div class="variant-row">
+      <div class="variant-box">
+        <div class="v-tag">VARIANT</div>
+        <div class="v-context">{host: db-01, user: app}</div>
+        <div class="v-solution">systemctl start postgres</div>
+      </div>
+      <div class="variant-box">
+        <div class="v-tag">VARIANT</div>
+        <div class="v-context">{host: db-01, firewall: on}</div>
+        <div class="v-solution">ufw allow 5432</div>
+      </div>
+      <div class="variant-box">
+        <div class="v-tag">VARIANT</div>
+        <div class="v-context">{host: db-02, port: 5433}</div>
+        <div class="v-solution">fix DB_PORT env</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h4>What an anchor is not</h4>
+<ul>
+  <li><strong>Not the raw error line.</strong> That's in <code>raw_text</code>, only present in the batch payload, never stored.</li>
+  <li><strong>Not the specific occurrence.</strong> That's a variant.</li>
+  <li><strong>Not a solution.</strong> Solutions attach to variants, not anchors.</li>
+  <li><strong>Not a link.</strong> That's a separate row connecting two anchors.</li>
+</ul>
+
+<h4>Why "anchor" and not "error shape"</h4>
+<p>Because it's where things <em>anchor to</em>. Variants anchor to it. Links anchor to it. Embeddings anchor to it. The whole system pivots around this generalized statement as the primary organizing entity — it's the container, not the content.</p>
+
+<div class="callout info">
+  <div class="callout-title">Anchors can be errors, problems, or decisions</div>
+  <p>Because <code>kind</code> exists, an anchor can represent an error (<code>"connection refused"</code>), a problem (<code>"hibernation fails on wake"</code>), or a decision (<code>"chose pipewire over pulseaudio"</code>). The generalization rules differ, but the shape of the entity is the same: a canonical string that things cluster around.</p>
+</div>
+
+<h3 id="relations">3.4 · How the tables relate</h3>
+
+<div class="mermaid">
+flowchart TB
+    DOM["Domains<br/><i>namespace + shape_version</i>"]
+    ANCH["ProcessedIncidents<br/><i>the anchor: generalized shape</i>"]
+    VAR["IncidentVariants<br/><i>the variant: specific cause</i>"]
+    SOL["VariantSolutions<br/><i>the fix, versioned</i>"]
+    FAIL["SolutionFailures<br/><i>attempts that failed</i>"]
+    LINK["IncidentLinks<br/><i>relations between anchors</i>"]
+    ING["ProcessedIngests<br/><i>idempotency gate</i>"]
+    CFG["SystemConfig<br/><i>global settings</i>"]
+
+    DOM -->|scopes| ANCH
+    ANCH -->|has many| VAR
+    VAR -->|has many versions of| SOL
+    VAR -->|has many| FAIL
+    ANCH <-->|related to| LINK
+    ING -.->|gates writes to| VAR
+    CFG -.->|configures| ANCH
+
+    classDef core fill:#1a3d2e,stroke:#10b981,stroke-width:2px,color:#fff
+    classDef meta fill:#2d1b4e,stroke:#a855f7,stroke-width:2px,color:#fff
+    classDef support fill:#4a1d1d,stroke:#ef4444,stroke-width:2px,color:#fff
+    class ANCH,VAR,SOL,LINK core
+    class DOM,CFG meta
+    class ING,FAIL support
+</div>
+
+<h4>The three cases mapped to tables</h4>
+<table>
+  <thead><tr><th>Case</th><th>What it needs</th><th>Where it lives</th></tr></thead>
+  <tbody>
+    <tr><td><strong>1 — Same text, different cause</strong></td><td>Group by shape, discriminate by context</td><td><code>ProcessedIncidents</code> (group) + <code>IncidentVariants</code> (discriminate)</td></tr>
+    <tr><td><strong>2 — Different text, same fix</strong></td><td>Collapse structurally similar; bridge distant</td><td><code>ProcessedIncidents</code> (collapse) + <code>IncidentLinks</code> (bridge)</td></tr>
+    <tr><td><strong>3b — Fix changes over time</strong></td><td>Versioned solutions, one current</td><td><code>VariantSolutions</code> (history) + partial unique index (one current)</td></tr>
+  </tbody>
+</table>
+
+<h4>Schema</h4>
+
+<pre data-label="schema.sql"><code class="language-sql">-- Idempotency gate: one row per processed observation
+CREATE TABLE ProcessedIngests (
+    event_id      TEXT PRIMARY KEY,
+    processed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Domains registry: holds per-domain shape_version
+CREATE TABLE Domains (
+    name           TEXT PRIMARY KEY,
+    description    TEXT,
+    shape_version  TEXT NOT NULL DEFAULT 'v1',
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Anchors: one per (kind, domain, shape_hash, shape_version)
+CREATE TABLE ProcessedIncidents (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kind              TEXT NOT NULL
+        CHECK (kind IN ('error','problem','decision')),
+    domain            TEXT NOT NULL REFERENCES Domains(name),
+    shape_hash        TEXT NOT NULL,
+    shape_version     TEXT NOT NULL,
+    shape_template    TEXT NOT NULL,
+    origin            TEXT NOT NULL
+        CHECK (origin IN ('watcher','agent','human','dashboard')),
+    error_embedding   VECTOR(384) NOT NULL,
+    embedding_model   TEXT NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (kind, domain, shape_hash, shape_version)
+);
+
+CREATE INDEX idx_incidents_embedding
+    ON ProcessedIncidents
+    USING hnsw (error_embedding vector_cosine_ops);
+
+-- Variants: one row per (incident_id, context_fingerprint)
+-- A variant is a SEMANTIC CAUSE GROUP.
+CREATE TABLE IncidentVariants (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    incident_id         UUID NOT NULL REFERENCES ProcessedIncidents(id) ON DELETE CASCADE,
+    context_fingerprint TEXT NOT NULL,
+    context_embedding   VECTOR(384) NOT NULL,
+    embedding_model     TEXT NOT NULL,
+    context_json        JSONB NOT NULL,
+    context_sample      TEXT NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active','needs_review')),
+    verified            BOOLEAN NOT NULL DEFAULT false,
+    merged_by_embedding BOOLEAN NOT NULL DEFAULT false,
+    occurrence_count    BIGINT NOT NULL DEFAULT 1,
+    version             BIGINT NOT NULL DEFAULT 1,
+    first_seen_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (incident_id, context_fingerprint)
+);
+
+-- Solutions: versioned. One current per variant.
+CREATE TABLE VariantSolutions (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    variant_id         UUID NOT NULL REFERENCES IncidentVariants(id) ON DELETE CASCADE,
+    text               TEXT NOT NULL,
+    recorded_by        TEXT,
+    recorded_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    superseded_at      TIMESTAMPTZ,
+    superseded_reason  TEXT,
+    verified           BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE UNIQUE INDEX one_current_solution_per_variant
+    ON VariantSolutions (variant_id)
+    WHERE superseded_at IS NULL;</code></pre>
+
+<h4>Semantics worth stating</h4>
+<ul>
+  <li><strong><code>occurrence_count</code></strong> counts observations assigned to this semantic variant — not unique context fingerprints. Multiple fingerprints may fold into one variant.</li>
+  <li><strong><code>version</code></strong> on <code>IncidentVariants</code> is for user-facing writes only. Ingest count increments do not bump it.</li>
+  <li><strong><code>origin</code></strong> is who produced the entry. Transport is request metadata, not stored.</li>
+  <li><strong><code>merged_by_embedding</code></strong> marks variants auto-folded from a fingerprint miss.</li>
+</ul>
+
+<h2 id="paths"><span class="num">4</span> Ingestion paths</h2>
+
+<table>
+  <thead><tr><th>Path</th><th>Client</th><th>Endpoint</th><th>Batching</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td>Watcher</td><td>Go binary</td><td><code>POST /ingest</code></td><td>5s per-domain</td><td><code>202 Accepted</code></td></tr>
+    <tr><td>Agent</td><td>MCP → HTTP</td><td><code>POST /ingest/sync</code></td><td>single</td><td>Full variant state</td></tr>
+    <tr><td>Manual (CLI)</td><td>CLI → HTTP</td><td><code>POST /ingest/sync</code></td><td>single</td><td>Full variant state</td></tr>
+    <tr><td>Dashboard</td><td>React → HTTP</td><td><code>POST /ingest/sync</code></td><td>single</td><td>Full variant state</td></tr>
+  </tbody>
+</table>
+
+<h3 id="payload">4.1 · /ingest payload</h3>
+
+<pre data-label="POST /ingest"><code class="language-json">{
+  "kind": "error",
+  "domain": "hibernation",
+  "origin": "watcher",
+  "rules_hash": "b7c1e2...",
+  "shape_version": "v1",
+  "samples": [
+    {
+      "event_id": "systemd:cursor=abc123:idx=0",
+      "raw_text": "PM: hibernation failed: I/O error, dev sda, sector 12345",
+      "context": {
+        "unit": "kernel",
+        "host": "laptop",
+        "kernel": "6.8.5",
+        "device": "sda"
+      },
+      "collapsed_count": 47
+    }
+  ]
+}</code></pre>
+
+<h2 id="critical"><span class="num">5</span> The critical section</h2>
+
+<p><strong>Peek first, embed conditionally, lock only on insert, idempotency-gate every write.</strong></p>
+
+<div class="callout success">
+  <div class="callout-title">The rule</div>
+  <p>Lock only when an INSERT might happen. Re-check only what you might INSERT. Updates to known rows are atomic — no lock, no re-check, no re-embed. Idempotency insert lives in the same transaction as the count increment it gates.</p>
+</div>
+
+<div class="path-grid">
+  <div class="path-card a">
+    <div class="label">CASE A</div>
+    <div class="cond">Anchor exists. All fingerprints hit. Pure repeat.</div>
+    <div class="metrics">
+      <div class="metric"><span class="k">lock</span><span class="v no">no</span></div>
+      <div class="metric"><span class="k">embed</span><span class="v no">no</span></div>
+      <div class="metric"><span class="k">re-check</span><span class="v no">no</span></div>
+    </div>
+    <div class="time">~5ms<small>fast path</small></div>
+  </div>
+  <div class="path-card b">
+    <div class="label">CASE B</div>
+    <div class="cond">Anchor exists. Some fingerprints miss.</div>
+    <div class="metrics">
+      <div class="metric"><span class="k">lock</span><span class="v yes">yes</span></div>
+      <div class="metric"><span class="k">embed</span><span class="v partial">contexts</span></div>
+      <div class="metric"><span class="k">re-check</span><span class="v partial">misses</span></div>
+    </div>
+    <div class="time">~35ms<small>one embedding</small></div>
+  </div>
+  <div class="path-card c">
+    <div class="label">CASE C</div>
+    <div class="cond">Anchor missing. First time seeing this error shape.</div>
+    <div class="metrics">
+      <div class="metric"><span class="k">lock</span><span class="v yes">yes</span></div>
+      <div class="metric"><span class="k">embed</span><span class="v yes">all</span></div>
+      <div class="metric"><span class="k">re-check</span><span class="v yes">anchor</span></div>
+    </div>
+    <div class="time">~70ms<small>two embeddings</small></div>
+  </div>
+</div>
+
+<h2 id="canon"><span class="num">6</span> Canonicalization &amp; shape hashing</h2>
+
+<pre data-label="watch.yaml"><code class="language-yaml">rules:
+  - pattern: "/dev/sd[a-z]"
+    replace: "&lt;DEV&gt;"
+  - pattern: "pid [0-9]+"
+    replace: "pid &lt;PID&gt;"</code></pre>
+
+<pre data-label="deterministic hash"><code>shape_string = apply_rules(canonical_error_line)
+             | canonical_error_line   -- if no rule matches
+shape_hash   = sha256(shape_string)</code></pre>
+
+<p>Same input + same rules → same hash, always. <strong><code>shape_version</code> is per-domain</strong> — it lives on <code>Domains.shape_version</code>. Bumped when a domain's rule set changes.</p>
+
+<div class="callout info">
+  <div class="callout-title">Dual-layer design</div>
+  <p>Deterministic hashing collapses structurally similar text into anchors. Semantic linking bridges anchors that are textually distinct but conceptually related. Both layers are necessary; neither alone is sufficient.</p>
+</div>
+
+<h2 id="context"><span class="num">7</span> Context (the variant key)</h2>
+
+<table>
+  <thead><tr><th>Path</th><th>Fields</th></tr></thead>
+  <tbody>
+    <tr><td>Agent</td><td><code>{repo, file, function, command, stack_summary}</code></td></tr>
+    <tr><td>Manual / CLI</td><td>Same as agent</td></tr>
+    <tr><td>Watcher</td><td><code>{unit, host, kernel, device, pid, cgroup}</code></td></tr>
+  </tbody>
+</table>
+
+<pre data-label="canonical form"><code>context_canonical   = JSON.stringify(context_json, keys_sorted)
+context_fingerprint = sha256(context_canonical)
+context_embedding   = embed(context_canonical)</code></pre>
+
+<h4>Fingerprint vs. variant</h4>
+<p>A <strong>context fingerprint</strong> is an exact identifier. A <strong>variant</strong> is a semantic cause group. Multiple fingerprints may map to one variant when the KNN gate finds them close enough.</p>
+
+<h2 id="versioning"><span class="num">8</span> Solution versioning (Case 3b)</h2>
+
+<pre data-label="record_solution.sql"><code class="language-sql">BEGIN;
+
+UPDATE VariantSolutions
+SET superseded_at = now(),
+    superseded_reason = $reason
+WHERE variant_id = $variant_id
+  AND superseded_at IS NULL
+  AND id = $expected_solution_id;
+
+rows = ROW_COUNT;
+IF rows = 0 AND $expected_solution_id IS NOT NULL:
+    ROLLBACK;
+    RETURN 409 CONFLICT;
+
+INSERT INTO VariantSolutions (variant_id, text, recorded_by, verified)
+VALUES ($variant_id, $text, $recorded_by, false);
+
+COMMIT;</code></pre>
+
+<h2 id="linking"><span class="num">9</span> Linking (Case 2)</h2>
+
+<p>Runs post-commit. Triggered by <code>NOTIFY anchor_created</code>. Backed up by a periodic sweep so missed notifications don't silently orphan anchors.</p>
+
+<div class="flow">
+  <div class="flow-step">
+    <h5>Fast path — NOTIFY</h5>
+    <p>On notification: fetch anchor, rate-gate per domain, ANN within kind, insert suggested links.</p>
+  </div>
+  <div class="flow-step">
+    <h5>Backstop — periodic sweep</h5>
+    <p>Every 5 minutes: find anchors created since last checkpoint with no outgoing link, process them the same way, advance the checkpoint.</p>
+  </div>
+</div>
+
+<h2 id="config"><span class="num">10</span> Config engine</h2>
+
+<pre data-label="config/watches/hibernation.yaml"><code class="language-yaml">id: hibernation-fedora
+domain: hibernation
+filter: ".*(hibernat|suspend|resume|sleep).*"
+rules:
+  - pattern: "/dev/sd[a-z]"
+    replace: "&lt;DEV&gt;"
+context_fields: [unit, host, kernel, device]
+batch_window_seconds: 5</code></pre>
+
+<h2 id="embedding"><span class="num">11</span> Embedding plugin</h2>
+
+<pre data-label="interface"><code>interface EmbeddingProvider {
+    modelId(): string                 // "all-MiniLM-L6-v2"
+    dimensions(): number              // 384
+    embed(text: string): Promise&lt;number[]&gt;
+}</code></pre>
+
+<table>
+  <thead><tr><th>Situation</th><th>Shape embed</th><th>Context embed</th></tr></thead>
+  <tbody>
+    <tr><td>Case A (fast path)</td><td>No</td><td>No</td></tr>
+    <tr><td>Case B</td><td>No</td><td>Fingerprint misses only</td></tr>
+    <tr><td>Case C</td><td>Yes</td><td>All samples</td></tr>
+    <tr><td>Lookup, anchor found</td><td>No</td><td>Fingerprint misses only</td></tr>
+  </tbody>
+</table>
+
+<h2 id="api"><span class="num">12</span> API surface</h2>
+
+<pre><code>POST   /ingest                   watcher batch
+POST   /ingest/sync              single item
+GET    /lookup                   lookup by text + context
+GET    /search                   semantic + filtered search
+GET    /incidents                list anchors
+GET    /incidents/:id            anchor detail + variants
+GET    /variants/:id             variant detail
+POST   /variants/:id/solutions   record solution
+POST   /variants/:id/failures    record failure
+POST   /variants/:id/verify      verify current solution
+POST   /links                    explicit link
+PATCH  /links/:id                confirm / reject
+GET    /domains                  list domains
+WS     /events                   live broadcast</code></pre>
+
+<h2 id="mcp"><span class="num">13</span> MCP surface</h2>
+
+<p>MCP is a subset of the API, reshaped as agent tools. It is not a gateway.</p>
+
+<table>
+  <thead><tr><th>MCP tool</th><th>Maps to</th></tr></thead>
+  <tbody>
+    <tr><td><code>lookup_error</code></td><td><code>GET /lookup</code></td></tr>
+    <tr><td><code>search_memory</code></td><td><code>GET /search</code></td></tr>
+    <tr><td><code>record_problem</code></td><td><code>POST /ingest/sync</code></td></tr>
+    <tr><td><code>record_solution</code></td><td><code>POST /variants/:id/solutions</code></td></tr>
+    <tr><td><code>list_domains</code></td><td><code>GET /domains</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="invariants"><span class="num">14</span> Invariants</h2>
+
+<ol class="invariants">
+  <li><span class="n">01</span><span><strong>HTTP idempotency.</strong> Every observation has a stable <code>event_id</code>.</span></li>
+  <li><span class="n">02</span><span><strong>Determinism.</strong> <code>shape_hash</code> is a pure function of <code>(shape_string, shape_version)</code>.</span></li>
+  <li><span class="n">03</span><span><strong>Deterministic batch order.</strong> Samples sorted by <code>context_fingerprint</code>.</span></li>
+  <li><span class="n">04</span><span><strong>Anchor uniqueness.</strong> One anchor per <code>(kind, domain, shape_hash, shape_version)</code>.</span></li>
+  <li><span class="n">05</span><span><strong>Variant uniqueness.</strong> One row per <code>(incident_id, context_fingerprint)</code>.</span></li>
+  <li><span class="n">06</span><span><strong>One current solution.</strong> Partial unique index.</span></li>
+  <li><span class="n">07</span><span><strong>Solution concurrency.</strong> Conditional supersede + partial unique index.</span></li>
+  <li><span class="n">08</span><span><strong>Bounded critical section.</strong> Lock budget 2,000ms.</span></li>
+  <li><span class="n">09</span><span><strong>Lock only on insert.</strong> Fast path (Case A) takes no advisory lock.</span></li>
+  <li><span class="n">10</span><span><strong>Post-commit notify.</strong> NOTIFY only after COMMIT.</span></li>
+  <li><span class="n">11</span><span><strong>Linker backstop.</strong> Periodic sweep processes missed anchors.</span></li>
+  <li><span class="n">12</span><span><strong>Cross-model suppression.</strong> KNN and linking compare same-model vectors only.</span></li>
+  <li><span class="n">13</span><span><strong>One API, many clients.</strong> MCP is not in the path of any non-agent client.</span></li>
+  <li><span class="n">14</span><span><strong>Embedding is a candidate signal.</strong> Fingerprint hits are authoritative.</span></li>
+</ol>
+
+<h2 id="defaults"><span class="num">15</span> Chosen defaults</h2>
+
+<table>
+  <thead><tr><th>#</th><th>Decision</th><th>Revisit if</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Lock budget 2,000ms</td><td>Contention observed</td></tr>
+    <tr><td>2</td><td>Retry interval 50ms + jitter</td><td>Latency noticeable</td></tr>
+    <tr><td>3</td><td>Embedding: all-MiniLM-L6-v2, local</td><td>Quality insufficient</td></tr>
+    <tr><td>4</td><td>Distance thresholds: 0.10 / 0.20</td><td>Misclassification</td></tr>
+    <tr><td>5</td><td>Cross-kind linking: explicit only</td><td>Agents want auto</td></tr>
+    <tr><td>6</td><td>Linker sweep interval: 5 minutes</td><td>Missed links observed</td></tr>
+    <tr><td>7</td><td>Rules authored manually</td><td>Rule count &gt; ~30</td></tr>
+    <tr><td>8</td><td>Retention: nothing deleted</td><td>DB &gt; 1GB</td></tr>
+    <tr><td>9</td><td>Watcher batch: 5s per domain</td><td>Domain count × latency noticeable</td></tr>
+    <tr><td>10</td><td>Peek-before-embed</td><td>Never</td></tr>
+    <tr><td>11</td><td>origin replaces source</td><td>Transport tracking needed</td></tr>
+  </tbody>
+</table>
+
+<h2 id="deferred"><span class="num">16</span> Deferred</h2>
+
+<details>
+  <summary>Show deferred items</summary>
+  <ul>
+    <li><strong>React dashboard.</strong></li>
+    <li><strong>Staging table + async variant worker.</strong> If batch × latency exceeds budget.</li>
+    <li><strong>Hierarchical domains.</strong></li>
+    <li><strong>Cross-version retrieval.</strong></li>
+    <li><strong>Auto template mining.</strong></li>
+    <li><strong>Auto cross-kind linking.</strong></li>
+    <li><strong>Durable broadcast</strong> beyond the periodic sweep.</li>
+    <li><strong>Retention and archival.</strong></li>
+    <li><strong>Domain renaming.</strong></li>
+    <li><strong>Mirrored IncidentLinks.</strong> A→B and B→A can both exist.</li>
+    <li><strong>Reassignment audit trail.</strong></li>
+    <li><strong>ProcessedIngests growth.</strong> Not pruned in v1.</li>
+  </ul>
+</details>
+
+<h2 id="not"><span class="num">17</span> What this system is not</h2>
+
+<ul>
+  <li><strong>Not observability.</strong> No alerting, no on-call dashboards.</li>
+  <li><strong>Not a log store.</strong> Stores shapes, contexts, solutions — not raw log lines.</li>
+  <li><strong>Not real-time.</strong> 5s batch + async linker + periodic sweep.</li>
+  <li><strong>Not multi-user.</strong> Shared knowledge is within one machine.</li>
+  <li><strong>Not distributed.</strong> One Postgres, one API, one watcher.</li>
+</ul>
+
+<div class="callout success" style="margin-top:48px">
+  <div class="callout-title">Summary</div>
+  <p><strong>Four mechanisms:</strong> collapse (hashing), discriminate (context + embedding), relate (linking), version (solutions).</p>
+  <p style="margin-top:8px"><strong>Two axes:</strong> <code>kind</code> and <code>domain</code>. Everything else is context or config.</p>
+  <p style="margin-top:8px"><strong>Eight tables:</strong> four model entities (anchor, variant, solution, link), two are metadata (domain, config), one gates ingestion, one logs failures.</p>
+  <p style="margin-top:8px"><strong>One API, many clients.</strong> MCP is the agent adapter — not a gateway.</p>
+</div>
+
+</main>
+</div>
+
+<script>
+const html = document.documentElement;
+const toggle = document.getElementById('themeToggle');
+const prismDark = document.getElementById('prism-dark');
+const prismLight = document.getElementById('prism-light');
+
+function applyTheme(theme) {
+  html.setAttribute('data-theme', theme);
+  if (theme === 'light') {
+    prismDark.disabled = true;
+    prismLight.disabled = false;
+  } else {
+    prismDark.disabled = false;
+    prismLight.disabled = true;
+  }
+  localStorage.setItem('idem-theme', theme);
+  if (window.mermaid) renderMermaid();
+}
+
+function renderMermaid() {
+  const theme = html.getAttribute('data-theme');
+  const mermaidTheme = theme === 'light' ? 'default' : 'dark';
+  const themeVars = theme === 'light' ? {
+    primaryColor: '#ffffff', primaryTextColor: '#1a1a1f',
+    primaryBorderColor: '#0066cc', lineColor: '#0066cc',
+    secondaryColor: '#f0f0f3', tertiaryColor: '#f0f0f3',
+    fontFamily: 'Inter, system-ui, sans-serif', fontSize: '13px'
+  } : {
+    primaryColor: '#1a1a2e', primaryTextColor: '#e6e6ef',
+    primaryBorderColor: '#4a9eff', lineColor: '#4a9eff',
+    secondaryColor: '#2d1b4e', tertiaryColor: '#1a3d2e',
+    fontFamily: 'Inter, system-ui, sans-serif', fontSize: '13px'
+  };
+  document.querySelectorAll('.mermaid').forEach(el => {
+    if (!el.dataset.original) {
+      el.dataset.original = el.textContent.trim();
+    } else {
+      el.removeAttribute('data-processed');
+      el.textContent = el.dataset.original;
+    }
+  });
+  mermaid.initialize({
+    startOnLoad: false, theme: mermaidTheme, themeVariables: themeVars,
+    flowchart: { curve: 'basis', padding: 15 },
+    sequence: { actorMargin: 40, boxMargin: 8, messageFontSize: 12 }
+  });
+  mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+}
+
+const stored = localStorage.getItem('idem-theme');
+const initial = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+applyTheme(initial);
+
+toggle.addEventListener('click', () => {
+  const current = html.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+document.querySelectorAll('pre').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const code = pre.querySelector('code');
+    navigator.clipboard.writeText(code ? code.textContent : pre.textContent);
+    btn.textContent = 'copied';
+    setTimeout(() => btn.textContent = 'copy', 1200);
+  });
+  pre.appendChild(btn);
+});
+</script>
+</body>
+</html>

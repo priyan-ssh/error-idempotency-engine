@@ -1,0 +1,157 @@
+# =============================================================================
+# Idempotency Engine — .gitignore
+# Stack: C# .NET 9 · Go · Node.js/TypeScript · Docker (Postgres only)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# C# / .NET
+# -----------------------------------------------------------------------------
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Publish output
+publish/
+**/publish/
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+packages/
+!**/packages/repositories.config
+.nuget/
+
+# Rider / ReSharper
+.idea/
+*.DotSettings.user
+_ReSharper*/
+*.ReSharper
+
+# Test results
+TestResults/
+*.trx
+*.coveragexml
+coverage/
+
+# -----------------------------------------------------------------------------
+# Go
+# -----------------------------------------------------------------------------
+# Compiled binaries
+src/IdempotencyEngine.Watcher/watcher
+src/IdempotencyEngine.Watcher/idempotency-watcher
+
+# Generic go build output
+*.exe
+*.test
+*.out
+
+# Go workspace
+go.work.sum
+
+# -----------------------------------------------------------------------------
+# Node.js / TypeScript (MCP adapter & CLI)
+# -----------------------------------------------------------------------------
+node_modules/
+dist/
+build/
+*.js.map
+*.d.ts.map
+
+# tsbuildinfo
+*.tsbuildinfo
+
+# npm / yarn / pnpm
+.npm
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnpm-store/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# -----------------------------------------------------------------------------
+# Docker / Postgres
+# -----------------------------------------------------------------------------
+# Docker data volumes (Postgres data persisted locally)
+pgdata/
+.postgres-data/
+
+# Docker override files with local secrets
+docker-compose.override.yml
+docker-compose.local.yml
+
+# -----------------------------------------------------------------------------
+# Secrets & Config
+# -----------------------------------------------------------------------------
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+**/secrets.json
+
+# Watch configs with local overrides
+config/local/
+
+# -----------------------------------------------------------------------------
+# OS & Editor
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# JetBrains
+.idea/
+*.iml
+
+# -----------------------------------------------------------------------------
+# Scratch & Temporary
+# -----------------------------------------------------------------------------
+scratch/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# -----------------------------------------------------------------------------
+# Agent / Workflow State (generated at runtime)
+# -----------------------------------------------------------------------------
+docs/workflow_state.md
+PLAN.md
+REVIEW.md
+TEST_REPORT.md
+IMPLEMENTATION_NOTES.md
