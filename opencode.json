@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "orchestrator",
+  "instructions": [
+    ".opencode/rules/01-db-migration-policy.md",
+    ".opencode/rules/02-write-idempotency.md",
+    ".opencode/rules/03-advisory-lock-discipline.md",
+    ".opencode/rules/04-cross-harness-adapter.md"
+  ]
+}

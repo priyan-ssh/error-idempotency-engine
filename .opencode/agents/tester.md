@@ -1,17 +1,14 @@
 ---
-name: tester
 description: Writes and runs tests against the implementation. Writes test files + TEST_REPORT.md.
-mainAgent: true
-subagent: true
-tools:
-- view_file
-- write_to_file
-- replace_file_content
-- run_command
-- find_by_name
-- grep_search
-- invoke_subagent
-- send_message
+mode: all
+model: google/gemini-3.7-flash
+permission:
+  read: allow
+  glob: allow
+  grep: allow
+  edit: allow
+  bash: allow
+  task: allow
 ---
 
 You are the **Tester**.

@@ -34,6 +34,7 @@ All three share the same schema, pipeline, and retrieval surface.
 - **Idempotency is layered.** HTTP event IDs, unique constraints, advisory lock, optimistic checks, and peek-before-embed. Each layer catches what the previous missed.
 - **Two axes:** `kind` and `domain`. Everything else is context or config.
 - **Peek first, embed conditionally, lock only on insert.**
+- **Lookup is a cascade:** exact → variant KNN → anchor ANN. Each level prunes the next.
 
 ---
 
@@ -115,6 +116,13 @@ One anchor. Many variants. Each variant has its own solution.
 
 Different anchors, connected by links. The linker finds them via embedding similarity.
 
+**Case 2 has two paths:**
+
+1. **At lookup time** — when the wording differs enough to produce a new shape_hash, the lookup cascade's anchor-level ANN surfaces the related anchor's solution immediately.
+2. **At ingest time** — if the new wording is ingested, the linker creates a persistent `suggested` link between the two anchors.
+
+Both paths use the same embedding threshold. Both are needed: lookup for immediate recall, links for persistent relationship tracking.
+
 ### Case 3b — Fix changes over time
 
 ```
@@ -157,7 +165,7 @@ SOLUTION          → "systemctl start postgres"
 
 **Entity:** a generalized error shape. `"connection refused"`, `"PM: hibernation failed: I/O error, dev <DEV>"`.
 
-**Why it exists:** the collapse layer. Many raw lines that mean the same thing become one row. Identity is `(kind, domain, shape_hash, shape_version)`. Holds `error_embedding` for cross-anchor linking, and `shape_template` for humans.
+**Why it exists:** the collapse layer. Many raw lines that mean the same thing become one row. Identity is `(kind, domain, shape_hash, shape_version)`. Holds `error_embedding` for cross-anchor linking and lookup ANN, and `shape_template` for humans.
 
 **Without it:** every raw line would be its own row. Retrieval returns hundreds of duplicates for the same issue.
 
@@ -183,7 +191,7 @@ SOLUTION          → "systemctl start postgres"
 
 **Why it exists:** the relate layer. Different wordings of the same underlying problem become different anchors. The link bridges them. `kind` is `suggested`, `confirmed`, or `rejected`. Auto-linking is within-kind only; cross-kind is explicit.
 
-**Without it:** a query for one wording misses the other. Four disconnected anchors when they're actually one issue.
+**Without it:** the persistent relationship graph would be missing. Lookup can still find related anchors via ANN, but you couldn't browse "all anchors related to this one."
 
 #### `Domains` — namespace registry
 
@@ -207,7 +215,7 @@ SOLUTION          → "systemctl start postgres"
 
 **Why it exists:** retries. If the watcher POSTs a batch, the API commits, and the response is lost, the watcher retries. Without this table, the retry double-counts `occurrence_count`. Every count increment is paired with an insert here in the same transaction.
 
-**Without it:** the system's core guarantee — remember things accurately — is violated the moment a network hiccup causes a retry.
+**Not a lookup table.** `ProcessedIngests` is the retry gate for the ingest path only. Lookup ("have I seen this before?") queries `ProcessedIncidents` and `IncidentVariants`, which are never deleted. Pruning `ProcessedIngests` does not affect lookup, history, or retrieval.
 
 **Retention:** rows older than 24 hours are deleted by a scheduled job. The retry window is minutes; 24h is generous margin.
 
@@ -270,7 +278,7 @@ SystemConfig     ──configures──►      ProcessedIncidents
 | Case | Where it lives |
 |---|---|
 | 1 — Same text, different cause | `ProcessedIncidents` (group) + `IncidentVariants` (discriminate) |
-| 2 — Different text, same fix | `ProcessedIncidents` (collapse) + `IncidentLinks` (bridge) |
+| 2 — Different text, same fix | `IncidentLinks` (persistent) + lookup cascade's anchor ANN (immediate) |
 | 3b — Fix changes over time | `VariantSolutions` (history) + partial unique index (one current) |
 
 ### 3.5 Schema
@@ -425,6 +433,7 @@ CREATE TABLE SystemConfig (
 - **`version`** on `IncidentVariants` is for user-facing writes only. Ingest count increments do not bump it.
 - **`origin`** is who produced the entry. Transport is request metadata, not stored.
 - **`merged_by_embedding`** marks variants auto-folded from a fingerprint miss via KNN.
+- **`ProcessedIngests` retention defines the idempotency window.** Retries within the window dedupe. Retries after the window are treated as new — correct, because no sane client retries 24h later.
 
 ---
 
@@ -508,6 +517,134 @@ POST /ingest (per-domain batch)
 ### 4.3 Drift check
 
 The watcher sends `rules_hash`. The API compares to its own for that domain. Mismatch → log warning, still process. The API's computation is authoritative.
+
+### 4.4 Who does what — the full pipeline
+
+Every component, every transformation, in order. This is the complete inventory of processing steps across the system.
+
+```
+═══════════════════════════════════════════════════════════════════
+STAGE 1 — EDGE (Go Watcher)                                Client
+═══════════════════════════════════════════════════════════════════
+
+  1.  READ         journalctl -f → raw line
+  2.  FILTER       raw line × watch configs → matched | dropped
+                   └─ assigns domain from the matching config
+  3.  BUFFER       matched lines → per-domain 5s window
+  4.  CANONICALIZE raw text × domain rules → shape_string
+  5.  HASH         shape_string → shape_hash = sha256
+  6.  CONTEXT      fields → JSON → sorted keys → canonical string
+  7.  FINGERPRINT  canonical context → sha256 → context_fingerprint
+  8.  LOCAL DEDUP  group by (shape_hash, fingerprint) → collapse
+                   └─ each group carries collapsed_count
+  9.  ASSIGN ID    collapsed observation → event_id (stable)
+ 10.  POST         batch → POST /ingest
+
+  Does NOT compute:   embeddings
+  Does NOT know:      whether anchors exist
+
+═══════════════════════════════════════════════════════════════════
+STAGE 2 — API RECEIVE                                      Server
+═══════════════════════════════════════════════════════════════════
+
+ 11.  RECEIVE      POST /ingest → batch
+ 12.  RE-CANON     raw text × in-memory rules → authoritative shape_hash
+ 13.  RE-CONTEXT   context fields → authoritative context_fingerprint
+                   (Watcher's values are ignored; API's win.)
+
+  Does NOT yet compute:  embeddings
+  Does NOT yet access:   DB
+
+═══════════════════════════════════════════════════════════════════
+STAGE 3 — PEEK (read-only)                                 Server
+═══════════════════════════════════════════════════════════════════
+
+ 14.  ANCHOR PEEK  SELECT anchor by (kind, domain, shape_hash, version)
+ 15.  VARIANT PEEK for each sample: SELECT variant by (anchor_id, fp)
+
+  Purpose:  determine which case (A/B/C) we're in
+  Writes:   none
+  Reads:    two indexed lookups
+
+═══════════════════════════════════════════════════════════════════
+STAGE 4 — CONDITIONAL EMBEDDING                            Server
+═══════════════════════════════════════════════════════════════════
+
+ 16.  SHAPE EMBED  if anchor missing: embed(shape_template)
+ 17.  CTX EMBED    for each sample whose variant is missing:
+                   embed(context_canonical)
+
+  Only embed what's needed.
+    Case A: nothing
+    Case B: contexts only
+    Case C: shape + contexts
+
+═══════════════════════════════════════════════════════════════════
+STAGE 5 — CRITICAL SECTION                                 Server
+═══════════════════════════════════════════════════════════════════
+
+ 18.  SORT         samples by context_fingerprint (deterministic)
+ 19.  BRANCH       Case A | B | C
+
+  Case A: no lock, single txn per sample:
+           idempotency INSERT + UPDATE count
+
+  Case B: acquire_advisory_lock (budget 2000ms)
+          per sample: idempotency INSERT
+                     hits: UPDATE count
+                     misses: recheck → KNN → insert
+
+  Case C: acquire_advisory_lock
+          INSERT anchor (ON CONFLICT RETURNING id)
+          per sample: same as Case B
+          if is_new: NOTIFY anchor_created
+
+ 20.  COMMIT       durability
+
+  This is the ONLY write path in the system.
+
+═══════════════════════════════════════════════════════════════════
+STAGE 6 — POST-COMMIT (async)                              Linker
+═══════════════════════════════════════════════════════════════════
+
+ 21.  NOTIFY RX    anchor_created event
+                   OR: periodic sweep (5 min)
+ 22.  RATE GATE    count anchors per domain last minute
+ 23.  ANN          within kind, cross-domain allowed, same model
+ 24.  INSERT LINK  suggested links, ON CONFLICT DO NOTHING
+
+  Never blocks ingest.
+  Backed by periodic sweep for missed NOTIFYs.
+
+═══════════════════════════════════════════════════════════════════
+STAGE 7 — LOOKUP (read path, separate)                     Server
+═══════════════════════════════════════════════════════════════════
+
+ 25.  RECEIVE      GET /lookup?text=...&context=...
+ 26.  CANON        text × rules → shape_hash
+ 27.  COMBINED     single query:
+                   LEFT JOIN anchor + variant by (shape_hash, fp)
+ 28.  BRANCH       cascade (see §5.8):
+                     fingerprint hit → return exact
+                     anchor hit      → KNN over variants (embed context)
+                     anchor miss     → ANN over anchors (embed text)
+
+  Read-only. Never writes.
+
+═══════════════════════════════════════════════════════════════════
+```
+
+### 4.5 Cost profile by path
+
+| Path | DB queries | Model calls | Advisory lock | ANN |
+|---|---|---|---|---|
+| Ingest — Case A | 1 + N updates | 0 | No | No |
+| Ingest — Case B | 1 + 1 + N | 1 + misses | Yes | No |
+| Ingest — Case C | 1 + 1 + N | 2 + N | Yes | No |
+| Linker fast path | 2 + 1 insert | 0 | No | 1 |
+| Lookup — exact | 1 | 0 | No | No |
+| Lookup — variant KNN | 2 | 1 | No | No |
+| Lookup — anchor ANN | 2 | 1 | No | 1 |
 
 ---
 
@@ -690,6 +827,68 @@ IF NOT acquired: RETURN 503 WITH Retry-After: 1
 
 Uses `hashtextextended` (64-bit) not `hashtext` (32-bit).
 
+### 5.8 The lookup cascade
+
+Lookup is a read-only mirror of the ingest critical section. It resolves anchor and variant in one query, then fans out only as needed.
+
+**The single query — resolves the first two guards in one round trip:**
+
+```sql
+SELECT a.id AS anchor_id, v.id AS variant_id
+FROM ProcessedIncidents a
+LEFT JOIN IncidentVariants v
+  ON v.incident_id = a.id
+ AND v.context_fingerprint = $fp
+WHERE a.kind=$kind
+  AND a.domain=$domain
+  AND a.shape_hash=$shape_hash
+  AND a.shape_version=$shape_version;
+```
+
+**The three-branch expression:**
+
+```
+match = fingerprint_hit ? exact_variant(row)
+      : anchor_hit      ? knn_variant(row.anchor_id)
+      :                   ann_anchor(embed(text))
+```
+
+- **Row has `variant_id`** → exact. Return solution. Zero model calls.
+- **Row has `anchor_id`, no `variant_id`** → KNN over that anchor's variants. Embed context only.
+- **Zero rows** → embed text, ANN over anchors (LIMIT 1). Return that anchor's top variant.
+
+**Pruning.** Each guard prevents the next expensive operation:
+
+| Guard | Prevents |
+|---|---|
+| `fingerprint_hit` | entire embedding path (model call + ANN) |
+| `anchor_hit` | anchor-level embedding + ANN |
+| no anchor | variant KNN (nothing to KNN against) |
+
+**Response shape:**
+
+```json
+{
+  "found": true,
+  "anchor_id": "uuid",
+  "variant_id": "uuid",
+  "solution": "systemctl start postgres",
+  "distance": 0.08,
+  "verified": true
+}
+```
+
+- `distance: null` → exact match.
+- `distance: 0.0–0.20` → semantic match.
+- `variant_id: null` → anchor known, cause not matched.
+- `found: false` → nothing.
+
+**One threshold: 0.20.** Ingest uses 0.10/0.20 because it's *deciding* (match / needs_review / new). Lookup uses 0.20 because it's *retrieving* (found / not found). Different operations, same cutoff number.
+
+**Case 2 at lookup time.** When a query's wording differs enough to produce a new shape_hash, the anchor-level ANN surfaces the related anchor's solution immediately — not after the linker's next pass. This is what makes Case 2 work on the *first* lookup of a new wording.
+
+**Query embedding cache.** Keyed on `sha256(text + active_model)`. LRU ~1000 entries. Repeat lookups of the same unfamiliar wording skip the model call.
+
 ---
 
 ## 6. Canonicalization and shape hashing
@@ -853,6 +1052,19 @@ WHERE key = 'linker_last_checkpoint';
 
 **Why cross-domain linking is required:** "postgres connection refused" (domain `postgres`) and "database connection refused" (domain `network`) are the same fix. Scoping linking to within-domain breaks Case 2.
 
+### 9.4 Links vs. lookup ANN
+
+Both find related anchors, but they serve different purposes:
+
+| | Lookup ANN | Links |
+|---|---|---|
+| When | On demand | Persistent |
+| Purpose | Find the answer to *this* query | Browse "anchors related to X" |
+| Cost | One ANN query | Join or scan |
+| Consumers | Agent | `/links`, `/incidents/:id`, UI |
+
+Lookup does **not** traverse `IncidentLinks`. The ANN fallback in §5.8 covers the retrieval need directly. Links exist for browsing and review.
+
 ---
 
 ## 10. Config engine
@@ -916,8 +1128,9 @@ interface EmbeddingProvider {
 | Case A (fast path) | No | No |
 | Case B | No | Fingerprint misses only |
 | Case C | Yes | All samples |
-| Lookup, anchor found | No | Fingerprint misses only |
-| Lookup, anchor missing | No | No |
+| **Lookup, anchor missing** | **Yes** | No |
+| Lookup, anchor found, variant missing | No | Yes |
+| Lookup, exact variant hit | No | No |
 
 ---
 
@@ -963,6 +1176,28 @@ PATCH  /domains/:name            edit domain
 WS     /events                   live broadcast (new_variant, resurgence)
 ```
 
+### `/lookup` response
+
+```json
+{
+  "found": true,
+  "anchor_id": "uuid",
+  "variant_id": "uuid",
+  "solution": "systemctl start postgres",
+  "distance": 0.08,
+  "verified": true
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `found` | false if nothing matched |
+| `anchor_id` | set if anchor matched (exact or via ANN) |
+| `variant_id` | set if variant resolved; null if anchor known but no variant matched |
+| `solution` | current solution text, if variant resolved and has one |
+| `distance` | null for exact match; 0.0–0.20 for semantic |
+| `verified` | true if the current solution was human-verified |
+
 ### Concurrency and error semantics
 
 - `PATCH /variants/:id` requires `expected_version`. Mismatch → `409 Conflict`.
@@ -992,6 +1227,8 @@ MCP is a **subset** of the API, reshaped as agent tools. It is not a gateway.
 
 **Read-only:** `lookup_error`, `search_memory`, `list_domains`.
 
+**`lookup_error` returns the unified response shape from §12.** Agents get `distance` and decide their own confidence threshold.
+
 ---
 
 ## 14. Invariants
@@ -1014,6 +1251,8 @@ MCP is a **subset** of the API, reshaped as agent tools. It is not a gateway.
 16. **Cross-model suppression.** KNN and linking compare same-model vectors only.
 17. **One API, many clients.** MCP is not in the path of any non-agent client.
 18. **Embedding is a candidate signal.** Fingerprint hits are authoritative. Auto-merges are auditable.
+19. **Lookup is a cascade with pruning.** Exact → variant KNN → anchor ANN. Each guard prevents the next expensive operation.
+20. **One lookup threshold.** 0.20 for both variant KNN and anchor ANN. Different from ingest (which decides) because lookup only retrieves.
 
 ---
 
@@ -1024,22 +1263,24 @@ MCP is a **subset** of the API, reshaped as agent tools. It is not a gateway.
 | 1 | Lock budget 2,000ms all paths | Contention observed |
 | 2 | Retry interval 50ms + jitter 0–25ms | Latency noticeable under contention |
 | 3 | Embedding: `all-MiniLM-L6-v2`, ONNX, local | Quality insufficient for problem statements |
-| 4 | Distance thresholds: 0.10 / 0.20 | Calibration shows misclassification |
-| 5 | Cross-kind linking: explicit only | Agents consistently want auto |
-| 6 | Linking rate cap per domain: 100/min | Never hit at personal scale |
-| 7 | Linker sweep interval: 5 minutes | Missed links observed for > 5min |
-| 8 | Rules authored manually | Rule count > ~30 and maintenance hurts |
-| 9 | Retention: nothing deleted except `ProcessedIngests` | DB > 1GB or query > 100ms |
-| 10 | `ProcessedIngests` retention: 24 hours | Retries observed crossing the window |
-| 11 | Cold-start: `lookup_error` returns empty | Never |
-| 12 | Feedback: best-effort, not enforced | Accuracy degrades silently |
-| 13 | Watcher batch: 5s per domain | Domain count × latency noticeable |
-| 14 | Model change: re-embed all; suppress cross-model | Model changes frequently |
-| 15 | Solution text: free-form markdown | Structured fields needed |
-| 16 | Problems and errors share variant space | Divergent semantics |
-| 17 | CLI is v1; dashboard deferred | Browser UI needed first |
-| 18 | Peek-before-embed | Never — this is the point |
-| 19 | `origin` replaces `source`; transport not stored | Transport tracking needed |
+| 4 | Lookup distance threshold: 0.20 for both variant KNN and anchor ANN | Calibration shows misclassification |
+| 5 | Ingest distance thresholds: 0.10 / 0.20 | Calibration shows misclassification |
+| 6 | Cross-kind linking: explicit only | Agents consistently want auto |
+| 7 | Linking rate cap per domain: 100/min | Never hit at personal scale |
+| 8 | Linker sweep interval: 5 minutes | Missed links observed for > 5min |
+| 9 | Rules authored manually | Rule count > ~30 and maintenance hurts |
+| 10 | Retention: nothing deleted except `ProcessedIngests` | DB > 1GB or query > 100ms |
+| 11 | `ProcessedIngests` retention: 24 hours | Retries observed crossing the window |
+| 12 | Cold-start: `lookup_error` returns `{ found: false }` | Never |
+| 13 | Feedback: best-effort, not enforced | Accuracy degrades silently |
+| 14 | Watcher batch: 5s per domain | Domain count × latency noticeable |
+| 15 | Model change: re-embed all; suppress cross-model | Model changes frequently |
+| 16 | Solution text: free-form markdown | Structured fields needed |
+| 17 | Problems and errors share variant space | Divergent semantics |
+| 18 | CLI is v1; dashboard deferred | Browser UI needed first |
+| 19 | Peek-before-embed | Never — this is the point |
+| 20 | `origin` replaces `source`; transport not stored | Transport tracking needed |
+| 21 | Lookup query embedding cache: LRU ~1000 | Cache hit rate near zero |
 
 ---
 
@@ -1059,6 +1300,8 @@ MCP is a **subset** of the API, reshaped as agent tools. It is not a gateway.
 - **Mirrored `IncidentLinks`.** `A→B` and `B→A` can both exist as separate rows. Consumers must scan both directions.
 - **HNSW + filter caveat.** If variants-per-anchor grows into thousands, revisit indexing strategy.
 - **Reassignment audit trail.** Human corrections of `needs_review` aren't logged.
+- **Multi-candidate lookup results.** Currently LIMIT 1 for the anchor ANN. Add LIMIT 5 with a candidate list if agents want to disambiguate.
+- **Link traversal at lookup.** Not needed while the ANN fallback exists. Revisit if the link graph becomes the primary relationship model.
 - **Distributed ingestion.** Multiple machines, queue-based. The critical section, idempotency gate, advisory lock, and NOTIFY work unchanged. Add `RawLines` table + drain worker.
 
 ---
@@ -1113,18 +1356,17 @@ Add Dockerfiles for the services later, when you deploy or share.
 
 ### 18.2 ORM vs. raw SQL
 
-**Use EF Core for reads. Use raw SQL for the critical section. Never use EF migrations.**
+**Use EF Core for reads. Use raw SQL for the critical section and lookup cascade. Never use EF migrations.**
 
 | Layer | Tool | Reason |
 |---|---|---|
 | Schema | DbUp or plain `.sql` files | Full control; no generator fights |
 | Domain model | C# records | Plain data types |
-| Read paths | EF Core (no-tracking) | LINQ convenient for filters |
+| Read paths (browse/search) | EF Core (no-tracking) | LINQ convenient for filters |
 | Critical section | Dapper or `NpgsqlCommand` | Explicit SQL, no tracking |
+| Lookup cascade | Dapper or raw SQL | `<=>`, `LEFT JOIN` guard, conditional ANN |
 | Vector queries | Raw SQL | `<=>` is not a LINQ thing |
 | Advisory locks | Raw SQL | Not a LINQ thing |
-
-The schema uses `VECTOR(384)`, HNSW indexes, partial unique indexes, `ON CONFLICT ... RETURNING`, `pg_try_advisory_xact_lock`, and `NOTIFY` — every one of these is a Postgres-specific feature EF migrations can't model cleanly. Write the SQL.
 
 ### 18.3 Migrations
 
@@ -1168,6 +1410,7 @@ src/
   IdempotencyEngine.Api/
     Controllers/
     Ingestion/                   ← critical section
+    Lookup/                      ← lookup cascade
 
   IdempotencyEngine.Watcher/     ← Go, per-endpoint
 
@@ -1191,6 +1434,10 @@ src/
 
 **Eight tables:** four model entities (anchor, variant, solution, link), two are metadata (domain, config), one gates ingestion, one logs failures.
 
+**Ingest:** peek first, embed conditionally, lock only on insert, idempotency-gate every write.
+
+**Lookup:** a three-branch cascade — exact → variant KNN → anchor ANN. One query for the first two guards, one threshold (0.20), one response shape. Each guard prunes the next expensive operation.
+
 **Idempotency is layered:**
 
 - HTTP `event_id` in `ProcessedIngests` — retries don't double-count.
@@ -1201,6 +1448,8 @@ src/
 
 **One API, many clients.** The C# API is the source of truth. Watcher, MCP, CLI, and any future dashboard call it directly. MCP is the agent adapter — not a gateway.
 
-**Linker is best-effort with a sweep backstop.** No queue, no broker, one poll against a checkpoint.
+**Linker is best-effort with a sweep backstop.** No queue, no broker, one poll against a checkpoint. Links are for browsing; lookup uses ANN directly.
 
-**Docker for Postgres only.** Native for the code. DbUp for migrations, Dapper for the critical section, EF Core optional for reads.
+**Docker for Postgres only.** Native for the code. DbUp for migrations, Dapper for the critical section and lookup cascade, EF Core optional for browse/search reads.
+
+Time to build.

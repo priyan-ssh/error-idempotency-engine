@@ -1,4 +1,0 @@
-{
-  "name": "idempotency-engine-stack",
-  "description": "C#/Go/Node/PgVector stack for the Idempotency Engine. Includes skills for .NET 9, pgvector HNSW, Dapper critical section, Postgres advisory locks, Go journalctl watcher pipeline, and MCP adapter patterns."
-}

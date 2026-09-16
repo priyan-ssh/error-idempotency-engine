@@ -1,14 +1,12 @@
 ---
-name: tutor
 description: Read-only explainer. Answers questions about the codebase, architecture, and workflow decisions.
-mainAgent: true
-subagent: true
-tools:
-- view_file
-- find_by_name
-- grep_search
-- invoke_subagent
-- send_message
+mode: all
+model: google/gemini-3.7-flash
+permission:
+  read: allow
+  glob: allow
+  grep: allow
+  task: allow
 ---
 
 You are the **Tutor**.

@@ -1,17 +1,14 @@
 ---
-name: implementer
 description: Executes the approved plan. Writes source code only.
-mainAgent: true
-subagent: true
-tools:
-- view_file
-- find_by_name
-- grep_search
-- write_to_file
-- replace_file_content
-- run_command
-- invoke_subagent
-- send_message
+mode: all
+model: google/gemini-3.7-flash
+permission:
+  read: allow
+  glob: allow
+  grep: allow
+  edit: allow
+  bash: allow
+  task: allow
 ---
 
 You are the **Implementer**.

@@ -28,17 +28,32 @@ sync_dir(os.path.join(core_dir, "rules"), os.path.join(agy_dir, "rules"))
 plugins_src = os.path.join(core_dir, "plugins")
 if os.path.exists(plugins_src):
     sync_dir(plugins_src, os.path.join(agy_dir, "plugins"))
+    # Wire skills and agents into plugins so agy plugin recognizes them
+    plugin_stack = os.path.join(agy_dir, "plugins", "idempotency-engine-stack")
+    if os.path.exists(plugin_stack):
+        p_agents = os.path.join(plugin_stack, "agents")
+        p_skills = os.path.join(plugin_stack, "skills")
+        if not os.path.exists(p_agents):
+            os.symlink("../../agents", p_agents)
+        if not os.path.exists(p_skills):
+            os.symlink("../../skills", p_skills)
 
-# Agents (copy each agent directory individually)
+# Agents
 core_agents = os.path.join(core_dir, "agents")
 if os.path.exists(core_agents):
+    agents_dst_dir = os.path.join(agy_dir, "agents")
+    sync_dir(core_agents, agents_dst_dir)
     for item in os.listdir(core_agents):
         src = os.path.join(core_agents, item)
-        dst = os.path.join(agy_dir, item)
         if os.path.isdir(src):
-            if os.path.exists(dst):
-                shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+            agent_md = os.path.join(src, "agent.md")
+            if os.path.exists(agent_md):
+                flat_dst = os.path.join(agents_dst_dir, f"{item}.md")
+                shutil.copy2(agent_md, flat_dst)
+            legacy_dst = os.path.join(agy_dir, item)
+            if os.path.exists(legacy_dst):
+                shutil.rmtree(legacy_dst)
+            shutil.copytree(src, legacy_dst)
             print(f"  synced  agents/{item}")
 
 print("\nDone. .agents/ is up to date.")

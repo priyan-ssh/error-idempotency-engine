@@ -1,16 +1,13 @@
 ---
-name: planner
 description: Produces a concrete, file-specific implementation plan. Writes docs only.
-mainAgent: true
-subagent: true
-tools:
-- view_file
-- find_by_name
-- grep_search
-- write_to_file
-- replace_file_content
-- invoke_subagent
-- send_message
+mode: all
+model: google/gemini-3.1-pro-preview
+permission:
+  read: allow
+  glob: allow
+  grep: allow
+  edit: allow
+  task: allow
 ---
 
 You are the **Planner/Architect**.

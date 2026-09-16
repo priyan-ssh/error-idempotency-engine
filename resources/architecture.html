@@ -298,7 +298,7 @@ details[open] summary::before { transform: rotate(90deg); }
 details[open] summary { margin-bottom: 12px; }
 details > *:not(summary) { padding-left: 18px; }
 
-/* ═══ TABLE CARDS ═══ */
+/* Table cards */
 .table-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
 .table-card {
   background: var(--bg-card); border: 1px solid var(--border);
@@ -312,7 +312,6 @@ details > *:not(summary) { padding-left: 18px; }
 .table-card .t-name {
   font-family: "JetBrains Mono", monospace; font-size: 13px;
   font-weight: 700; color: var(--text); margin-bottom: 4px;
-  display: flex; align-items: center; gap: 8px;
 }
 .table-card .t-entity {
   font-size: 12px; color: var(--text-dim);
@@ -334,7 +333,105 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
   font-size: 10.5px; letter-spacing: 0.05em; margin-right: 4px;
 }
 
-/* ═══ PIPELINE VISUAL ═══ */
+/* Stage pipeline visual (Who does what) */
+.stages { margin: 24px 0; }
+.stage {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 14px; overflow: hidden;
+}
+.stage-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px; background: var(--bg-th);
+  border-bottom: 1px solid var(--border);
+}
+.stage-num {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  font-weight: 700; color: var(--accent);
+  background: var(--accent-soft); padding: 3px 9px;
+  border-radius: 4px; letter-spacing: 0.05em;
+}
+.stage-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  flex-grow: 1;
+}
+.stage-actor {
+  font-family: "JetBrains Mono", monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 9px; border-radius: 4px;
+  font-weight: 600;
+}
+.stage-actor.client { background: rgba(74,158,255,0.15); color: var(--accent); }
+.stage-actor.server { background: rgba(168,85,247,0.15); color: var(--accent-2); }
+.stage-actor.linker { background: rgba(245,158,11,0.15); color: var(--warn); }
+.stage-body { padding: 4px 0; }
+.stage-step {
+  display: grid; grid-template-columns: 42px 1fr;
+  gap: 12px; padding: 9px 20px;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.stage-step:last-child { border-bottom: none; }
+.stage-step .step-num {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  color: var(--text-faint); text-align: right;
+}
+.stage-step .step-text {
+  font-size: 13px; color: var(--text-body); line-height: 1.5;
+}
+.stage-step .step-text code { font-size: 12px; }
+.stage-step .step-text strong { color: var(--text); }
+.stage-step .step-text em { color: var(--text-dim); font-style: normal; }
+.stage-footer {
+  padding: 12px 20px; background: rgba(128,128,128,0.03);
+  border-top: 1px solid var(--border);
+  font-size: 12.5px; color: var(--text-dim);
+}
+.stage-footer strong { color: var(--text); }
+.stage-footer .warn { color: var(--warn); }
+.stage-footer .success { color: var(--success); }
+
+/* Cascade visual */
+.cascade { margin: 24px 0; }
+.cascade-level {
+  display: grid; grid-template-columns: 80px 1fr;
+  gap: 16px; align-items: stretch;
+  margin-bottom: 10px;
+}
+.cascade-label {
+  font-family: "JetBrains Mono", monospace; font-size: 10px;
+  font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 14px 12px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+}
+.cascade-level.l1 .cascade-label { color: var(--success); border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.05); }
+.cascade-level.l2 .cascade-label { color: var(--warn); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
+.cascade-level.l3 .cascade-label { color: var(--accent); border-color: rgba(74,158,255,0.3); background: rgba(74,158,255,0.05); }
+.cascade-body {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 18px;
+}
+.cascade-body .guard {
+  font-family: "JetBrains Mono", monospace; font-size: 12px;
+  color: var(--text-dim); margin-bottom: 6px;
+}
+.cascade-body .action {
+  font-size: 13.5px; color: var(--text); margin-bottom: 6px;
+}
+.cascade-body .cost {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  color: var(--text-faint); padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.cascade-body .cost .cell { display: inline-block; margin-right: 18px; }
+.cascade-body .cost .val-zero { color: var(--success); }
+.cascade-body .cost .val-one { color: var(--warn); }
+
+/* Pipeline visual */
 .pipeline {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -350,8 +447,7 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
   content: "→"; position: absolute;
   right: -16px; top: 50%;
   transform: translateY(-50%);
-  color: var(--text-faint); font-size: 18px;
-  font-weight: 700;
+  color: var(--text-faint); font-size: 18px; font-weight: 700;
 }
 .pipeline-stage:last-child::after { display: none; }
 .pipeline-stage .p-label {
@@ -378,7 +474,7 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
   letter-spacing: 0.03em;
 }
 
-/* ═══ ANCHOR CONTAINER VISUAL ═══ */
+/* Anchor container visual */
 .anchor-viz {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 8px; padding: 24px; margin: 24px 0;
@@ -429,9 +525,7 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
   padding-top: 8px; border-top: 1px solid var(--border);
   line-height: 1.45;
 }
-.variant-box .v-solution::before {
-  content: "→ "; color: var(--success); font-weight: 700;
-}
+.variant-box .v-solution::before { content: "→ "; color: var(--success); font-weight: 700; }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
@@ -440,6 +534,7 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
   .case-grid, .path-grid, .table-cards, .variant-row { grid-template-columns: 1fr; }
   .pipeline { grid-template-columns: 1fr; }
   .pipeline-stage::after { content: "↓"; right: 50%; top: auto; bottom: -16px; transform: translateX(50%); }
+  .cascade-level { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -467,9 +562,11 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
     <a href="#relations" class="sub">3.4 · Relationships</a>
     <div class="toc-section">Ingestion</div>
     <a href="#paths">4 · Ingestion paths</a>
-    <a href="#payload">4.1 · Payload shape</a>
+    <a href="#whodoeswhat" class="sub">4.4 · Who does what</a>
+    <a href="#costs" class="sub">4.5 · Cost profile</a>
     <div class="toc-section">Engine</div>
     <a href="#critical">5 · Critical section</a>
+    <a href="#lookup" class="sub">5.8 · Lookup cascade</a>
     <a href="#canon">6 · Canonicalization</a>
     <a href="#context">7 · Context</a>
     <div class="toc-section">Solutions</div>
@@ -477,7 +574,7 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
     <a href="#linking">9 · Linking</a>
     <div class="toc-section">Operational</div>
     <a href="#config">10 · Config engine</a>
-    <a href="#embedding">11 · Embedding plugin</a>
+    <a href="#embedding">11 · Embedding</a>
     <a href="#api">12 · API surface</a>
     <a href="#mcp">13 · MCP surface</a>
     <div class="toc-section">Reference</div>
@@ -485,6 +582,7 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
     <a href="#defaults">15 · Defaults</a>
     <a href="#deferred">16 · Deferred</a>
     <a href="#not">17 · What this is not</a>
+    <a href="#impl">18 · Implementation notes</a>
   </nav>
 </aside>
 
@@ -531,12 +629,12 @@ html[data-theme="light"] .table-card .t-why strong { color: #000; }
   </tbody>
 </table>
 
-<p>All three share the same schema, pipeline, and retrieval surface.</p>
-
 <div class="callout success">
   <div class="callout-title">Core design principles</div>
   <p><strong>One API, many clients.</strong> The C# Ingest API is the source of truth. Watcher, MCP, CLI, and any future dashboard are clients. MCP is the agent adapter — not a gateway.</p>
   <p style="margin-top:8px"><strong>Idempotency is layered.</strong> HTTP event IDs, unique constraints, advisory lock, optimistic checks, and peek-before-embed. Each layer catches what the previous missed.</p>
+  <p style="margin-top:8px"><strong>Two axes:</strong> <code>kind</code> and <code>domain</code>. Everything else is context or config.</p>
+  <p style="margin-top:8px"><strong>Lookup is a cascade</strong> — exact → variant KNN → anchor ANN. Each level prunes the next.</p>
 </div>
 
 <h2 id="arch"><span class="num">1</span> Architecture</h2>
@@ -591,6 +689,9 @@ flowchart TB
     CRIT -.->|NOTIFY| LINKER
     LINKER --> T4
     SWEEP --> T4
+    LOOK --> T1
+    LOOK --> T2
+    LOOK --> T3
 
     classDef client fill:#1e3a5f,stroke:#4a9eff,stroke-width:2px,color:#fff
     classDef api fill:#2d1b4e,stroke:#a855f7,stroke-width:2px,color:#fff
@@ -604,46 +705,41 @@ flowchart TB
     class T0,T1,T2,T3,T4,T5 db
 </div>
 
-<h2 id="cases"><span class="num">2</span> The three cases</h2>
+<h2 id="cases"><span class="num">2</span> The three cases, illustrated</h2>
 
-<div class="mermaid">
-flowchart TB
-    subgraph C1["Case 1 — Same text, different cause"]
-        direction TB
-        E1["connection refused"] --> A1["ANCHOR<br/>kind=error, domain=postgres"]
-        A1 --> V1["variant: service not started"]
-        A1 --> V2["variant: firewall blocking"]
-        A1 --> V3["variant: wrong port"]
-        V1 --> S1["solution: systemctl start"]
-        V2 --> S2["solution: open port 5432"]
-        V3 --> S3["solution: fix DB_PORT"]
-    end
+<h3>Case 1 — Same text, different cause</h3>
+<pre><code>error: connection refused
+   └── ANCHOR (kind=error, domain=postgres)
+         ├── variant: service not started  → solution: systemctl start postgres
+         ├── variant: firewall blocking    → solution: open port 5432
+         └── variant: wrong port in config → solution: fix DB_PORT env</code></pre>
 
-    subgraph C2["Case 2 — Different text, same fix"]
-        direction TB
-        E2a["Stored proc A not present"] --> A2a["ANCHOR A"]
-        E2b["Stored proc B not present"] --> A2a
-        E2c["Procedure Z does not exist"] --> A2b["ANCHOR B"]
-        A2a -.->|suggested link| A2b
-    end
+<h3>Case 2 — Different text, same fix</h3>
+<pre><code>"Stored proc A not present"  ─┐
+"Stored proc B not present"  ─┴─► ANCHOR A ("Stored proc &lt;VAR&gt; not present")
+                                        │
+                                        │ suggested link
+                                        ▼
+"Procedure Z does not exist" ────► ANCHOR B ("Procedure &lt;VAR&gt; does not exist")</code></pre>
 
-    subgraph C3["Case 3b — Fix changes over time"]
-        direction TB
-        E3["hibernation fails"] --> A3["ANCHOR"]
-        A3 --> V3b["VARIANT"]
-        V3b --> SA["Solution A superseded"]
-        V3b --> SB["Solution B superseded"]
-        V3b --> SC["Solution C CURRENT"]
-    end
+<div class="callout info">
+  <div class="callout-title">Case 2 has two paths</div>
+  <p><strong>At lookup time</strong> — when the wording differs enough to produce a new shape_hash, the lookup cascade's anchor-level ANN surfaces the related anchor's solution immediately.</p>
+  <p style="margin-top:8px"><strong>At ingest time</strong> — if the new wording is ingested, the linker creates a persistent <code>suggested</code> link between the two anchors.</p>
+  <p style="margin-top:8px">Both paths use the same embedding threshold. Both are needed: lookup for immediate recall, links for persistent relationship tracking.</p>
 </div>
+
+<h3>Case 3b — Fix changes over time</h3>
+<pre><code>VARIANT (hibernation fails on wake, kernel 6.8, nvidia)
+   ├── Solution A  (superseded 2024-03, reason: kernel update)
+   ├── Solution B  (superseded 2024-08, reason: nvidia driver fix)
+   └── Solution C  (CURRENT)</code></pre>
 
 <h2 id="schema"><span class="num">3</span> Data model</h2>
 
-<p>Eight tables. Four model the entities of the system, two are metadata, one gates ingestion, one logs failures. This section explains each in plain terms before the SQL.</p>
+<p>Eight tables. Four model the entities (anchor, variant, solution, link), two are metadata (domain, config), one gates ingestion, one logs failures.</p>
 
-<h3 id="pipeline">3.1 · Raw line to solution — the pipeline</h3>
-
-<p>A concrete example, end to end. The raw text is what a log produces. Everything after it is stored.</p>
+<h3 id="pipeline">3.1 · Raw line to solution</h3>
 
 <div class="pipeline">
   <div class="pipeline-stage p1">
@@ -690,81 +786,72 @@ flowchart TB
   <div class="table-card t-core">
     <div class="t-name">ProcessedIncidents</div>
     <div class="t-entity">Entity: an anchor — a generalized error shape</div>
-    <div class="t-why"><strong>Why it exists:</strong> this is the collapse layer. Many raw lines that mean the same thing become one row here. Identity is <code>(kind, domain, shape_hash, shape_version)</code>.</div>
-    <div class="t-why">Holds <code>error_embedding</code> for cross-anchor linking, and <code>shape_template</code> for humans.</div>
-    <div class="t-missing">every raw line would be its own row. Retrieval would return hundreds of duplicates for the same underlying issue.</div>
+    <div class="t-why"><strong>Why it exists:</strong> the collapse layer. Many raw lines that mean the same thing become one row. Identity is <code>(kind, domain, shape_hash, shape_version)</code>. Holds <code>error_embedding</code> for cross-anchor linking and lookup ANN.</div>
+    <div class="t-missing">every raw line would be its own row. Retrieval returns hundreds of duplicates for the same issue.</div>
   </div>
 
   <div class="table-card t-core">
     <div class="t-name">IncidentVariants</div>
     <div class="t-entity">Entity: a variant — a specific cause under an anchor</div>
-    <div class="t-why"><strong>Why it exists:</strong> this is the discriminate layer. Same error text, different root cause → different variants. Identity is <code>(incident_id, context_fingerprint)</code>.</div>
-    <div class="t-why">Holds <code>context_embedding</code> for semantic matching, <code>occurrence_count</code> for volume, <code>status</code> for review, <code>merged_by_embedding</code> for audit.</div>
+    <div class="t-why"><strong>Why it exists:</strong> the discriminate layer. Same error text, different root cause → different variants. Identity is <code>(incident_id, context_fingerprint)</code>. Holds <code>context_embedding</code>, <code>occurrence_count</code>, <code>status</code>, <code>merged_by_embedding</code>.</div>
     <div class="t-missing">one anchor would carry one solution. You couldn't distinguish "connection refused because service is down" from "connection refused because firewall is blocking".</div>
   </div>
 
   <div class="table-card t-core">
     <div class="t-name">VariantSolutions</div>
-    <div class="t-entity">Entity: a solution — a fix, versioned</div>
-    <div class="t-why"><strong>Why it exists:</strong> this is the versioning layer. The same variant can have had multiple solutions over time. One row per solution ever recorded; the current one is the row with <code>superseded_at IS NULL</code>.</div>
-    <div class="t-why">Holds <code>superseded_reason</code> and <code>verified</code>.</div>
+    <div class="t-entity">Entity: a solution — a fix, versioned over time</div>
+    <div class="t-why"><strong>Why it exists:</strong> the versioning layer. One row per solution ever recorded; the current one is the row with <code>superseded_at IS NULL</code> (partial unique index). Holds <code>superseded_reason</code> and <code>verified</code>.</div>
     <div class="t-missing">you'd overwrite solutions and lose history. No way to know the old fix stopped working or why.</div>
   </div>
 
   <div class="table-card t-core">
     <div class="t-name">IncidentLinks</div>
     <div class="t-entity">Entity: a relation — "these anchors are probably the same issue"</div>
-    <div class="t-why"><strong>Why it exists:</strong> this is the relate layer. Different wordings of the same underlying problem become different anchors. The link bridges them.</div>
-    <div class="t-why">Kind is <code>suggested</code>, <code>confirmed</code>, or <code>rejected</code>. Auto-linking is within-kind only; cross-kind is explicit.</div>
-    <div class="t-missing">a query for one wording would miss the other. Four disconnected anchors when they're actually one issue.</div>
+    <div class="t-why"><strong>Why it exists:</strong> the relate layer. Different wordings of the same underlying problem become different anchors. The link bridges them. <code>kind</code> is <code>suggested</code>, <code>confirmed</code>, or <code>rejected</code>.</div>
+    <div class="t-missing">the persistent relationship graph would be missing. Lookup ANN still finds related anchors, but you couldn't browse them.</div>
   </div>
 
   <div class="table-card t-meta">
     <div class="t-name">Domains</div>
     <div class="t-entity">Metadata: a problem area namespace</div>
-    <div class="t-why"><strong>Why it exists:</strong> every anchor belongs to exactly one domain (<code>hibernation</code>, <code>postgres</code>, <code>sound</code>). Domain is part of the anchor's identity, so the same error text in two domains is two different anchors.</div>
-    <div class="t-why">Holds per-domain <code>shape_version</code>. Bump the rules, get new anchors without invalidating old ones.</div>
+    <div class="t-why"><strong>Why it exists:</strong> every anchor belongs to exactly one domain. Domain is part of the anchor's identity. Holds per-domain <code>shape_version</code>.</div>
     <div class="t-missing">no way to scope rules, rate limiting, or retrieval by problem area.</div>
   </div>
 
   <div class="table-card t-meta">
     <div class="t-name">SystemConfig</div>
     <div class="t-entity">Metadata: global key-value settings</div>
-    <div class="t-why"><strong>Why it exists:</strong> holds things that aren't per-domain and don't deserve their own table: <code>active_embedding_model</code>, <code>lock_budget_ms</code>, <code>linker_last_checkpoint</code>.</div>
-    <div class="t-why">The checkpoint especially needs to live in the DB so a restart doesn't lose the sweep's place.</div>
+    <div class="t-why"><strong>Why it exists:</strong> holds <code>active_embedding_model</code>, <code>lock_budget_ms</code>, <code>linker_last_checkpoint</code>. The checkpoint must be durable so a restart doesn't lose the sweep's place.</div>
     <div class="t-missing">scattered config in env vars or hardcoded constants.</div>
   </div>
 
   <div class="table-card t-support">
     <div class="t-name">ProcessedIngests</div>
     <div class="t-entity">Support: the idempotency gate</div>
-    <div class="t-why"><strong>Why it exists:</strong> retries. If the watcher POSTs a batch, the API commits, and the response is lost, the watcher retries. Without this table, the retry would double-count <code>occurrence_count</code>.</div>
-    <div class="t-why">Every count increment is paired with an insert here in the same transaction.</div>
-    <div class="t-missing">the system's core guarantee — remember things accurately — is violated the moment a network hiccup causes a retry.</div>
+    <div class="t-why"><strong>Why it exists:</strong> retries. Every count increment is paired with an insert here in the same transaction. On duplicate <code>event_id</code>, the bump is skipped.</div>
+    <div class="t-why"><strong>Not a lookup table.</strong> Lookup queries the anchor and variant tables, which are never deleted.</div>
+    <div class="t-missing">the core guarantee — remember things accurately — is violated the moment a network hiccup causes a retry.</div>
   </div>
 
   <div class="table-card t-support">
     <div class="t-name">SolutionFailures</div>
     <div class="t-entity">Support: append-only failure log</div>
-    <div class="t-why"><strong>Why it exists:</strong> "I tried this solution and it didn't work." Records a specific observation about a specific solution on a specific variant.</div>
-    <div class="t-why">Does not automatically supersede the solution — that's a human/agent decision. Provides a trail for revising solutions later.</div>
-    <div class="t-missing">solutions with no track record. A fix that's failed five times would look as good as one that's worked fifty times.</div>
+    <div class="t-why"><strong>Why it exists:</strong> records when a specific solution was attempted and failed. Does not automatically supersede the solution.</div>
+    <div class="t-missing">solutions with no track record.</div>
   </div>
 
 </div>
 
 <h3 id="anchor">3.3 · What is an anchor?</h3>
 
-<p>An anchor <strong>is</strong> a generalized error message — but "generalized" is a specific, rule-driven process, not an intuition. An anchor is the message after the domain's rules have stripped its variables.</p>
+<p>An anchor <strong>is</strong> a generalized error message — but "generalized" is a specific, rule-driven process. An anchor is the message after the domain's rules have stripped its variables.</p>
 
 <div class="anchor-viz">
   <div class="a-title">The anchor as a container</div>
-
   <div class="anchor-box">
     <div class="a-tag">ANCHOR — ProcessedIncidents</div>
     <div class="a-shape">"connection refused"</div>
     <div class="a-meta">kind=error · domain=postgres · shape_hash=a3f... · shape_version=v1</div>
-
     <div class="variant-row">
       <div class="variant-box">
         <div class="v-tag">VARIANT</div>
@@ -787,21 +874,15 @@ flowchart TB
 
 <h4>What an anchor is not</h4>
 <ul>
-  <li><strong>Not the raw error line.</strong> That's in <code>raw_text</code>, only present in the batch payload, never stored.</li>
-  <li><strong>Not the specific occurrence.</strong> That's a variant.</li>
-  <li><strong>Not a solution.</strong> Solutions attach to variants, not anchors.</li>
-  <li><strong>Not a link.</strong> That's a separate row connecting two anchors.</li>
+  <li>Not the raw error line (that's <code>raw_text</code>, never stored).</li>
+  <li>Not the specific occurrence (that's a variant).</li>
+  <li>Not a solution (solutions attach to variants).</li>
+  <li>Not a link (that's a separate row connecting two anchors).</li>
 </ul>
 
-<h4>Why "anchor" and not "error shape"</h4>
-<p>Because it's where things <em>anchor to</em>. Variants anchor to it. Links anchor to it. Embeddings anchor to it. The whole system pivots around this generalized statement as the primary organizing entity — it's the container, not the content.</p>
+<p><strong>Why "anchor":</strong> because it's where things <em>anchor to</em>. Variants anchor to it. Links anchor to it. Embeddings anchor to it. Anchors can be errors, problems, or decisions — the <code>kind</code> field distinguishes them.</p>
 
-<div class="callout info">
-  <div class="callout-title">Anchors can be errors, problems, or decisions</div>
-  <p>Because <code>kind</code> exists, an anchor can represent an error (<code>"connection refused"</code>), a problem (<code>"hibernation fails on wake"</code>), or a decision (<code>"chose pipewire over pulseaudio"</code>). The generalization rules differ, but the shape of the entity is the same: a canonical string that things cluster around.</p>
-</div>
-
-<h3 id="relations">3.4 · How the tables relate</h3>
+<h3 id="relations">3.4 · Relationships</h3>
 
 <div class="mermaid">
 flowchart TB
@@ -830,23 +911,27 @@ flowchart TB
     class ING,FAIL support
 </div>
 
-<h4>The three cases mapped to tables</h4>
 <table>
-  <thead><tr><th>Case</th><th>What it needs</th><th>Where it lives</th></tr></thead>
+  <thead><tr><th>Case</th><th>Where it lives</th></tr></thead>
   <tbody>
-    <tr><td><strong>1 — Same text, different cause</strong></td><td>Group by shape, discriminate by context</td><td><code>ProcessedIncidents</code> (group) + <code>IncidentVariants</code> (discriminate)</td></tr>
-    <tr><td><strong>2 — Different text, same fix</strong></td><td>Collapse structurally similar; bridge distant</td><td><code>ProcessedIncidents</code> (collapse) + <code>IncidentLinks</code> (bridge)</td></tr>
-    <tr><td><strong>3b — Fix changes over time</strong></td><td>Versioned solutions, one current</td><td><code>VariantSolutions</code> (history) + partial unique index (one current)</td></tr>
+    <tr><td>1 — Same text, different cause</td><td><code>ProcessedIncidents</code> (group) + <code>IncidentVariants</code> (discriminate)</td></tr>
+    <tr><td>2 — Different text, same fix</td><td><code>IncidentLinks</code> (persistent) + lookup cascade's anchor ANN (immediate)</td></tr>
+    <tr><td>3b — Fix changes over time</td><td><code>VariantSolutions</code> (history) + partial unique index (one current)</td></tr>
   </tbody>
 </table>
 
-<h4>Schema</h4>
+<h3>3.5 · Schema</h3>
 
-<pre data-label="schema.sql"><code class="language-sql">-- Idempotency gate: one row per processed observation
+<pre data-label="schema.sql"><code class="language-sql">CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Idempotency gate: one row per processed observation
 CREATE TABLE ProcessedIngests (
     event_id      TEXT PRIMARY KEY,
     processed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_ingests_processed_at
+    ON ProcessedIngests (processed_at);
 
 -- Domains registry: holds per-domain shape_version
 CREATE TABLE Domains (
@@ -874,12 +959,17 @@ CREATE TABLE ProcessedIncidents (
     UNIQUE (kind, domain, shape_hash, shape_version)
 );
 
+CREATE INDEX idx_incidents_kind_domain
+    ON ProcessedIncidents (kind, domain);
+CREATE INDEX idx_incidents_domain_created
+    ON ProcessedIncidents (domain, created_at);
 CREATE INDEX idx_incidents_embedding
     ON ProcessedIncidents
     USING hnsw (error_embedding vector_cosine_ops);
 
 -- Variants: one row per (incident_id, context_fingerprint)
 -- A variant is a SEMANTIC CAUSE GROUP.
+-- Multiple fingerprints may map to one variant.
 CREATE TABLE IncidentVariants (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incident_id         UUID NOT NULL REFERENCES ProcessedIncidents(id) ON DELETE CASCADE,
@@ -899,6 +989,12 @@ CREATE TABLE IncidentVariants (
     UNIQUE (incident_id, context_fingerprint)
 );
 
+CREATE INDEX idx_variants_incident
+    ON IncidentVariants (incident_id);
+CREATE INDEX idx_variants_embedding
+    ON IncidentVariants
+    USING hnsw (context_embedding vector_cosine_ops);
+
 -- Solutions: versioned. One current per variant.
 CREATE TABLE VariantSolutions (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -913,15 +1009,50 @@ CREATE TABLE VariantSolutions (
 
 CREATE UNIQUE INDEX one_current_solution_per_variant
     ON VariantSolutions (variant_id)
-    WHERE superseded_at IS NULL;</code></pre>
+    WHERE superseded_at IS NULL;
 
-<h4>Semantics worth stating</h4>
-<ul>
-  <li><strong><code>occurrence_count</code></strong> counts observations assigned to this semantic variant — not unique context fingerprints. Multiple fingerprints may fold into one variant.</li>
-  <li><strong><code>version</code></strong> on <code>IncidentVariants</code> is for user-facing writes only. Ingest count increments do not bump it.</li>
-  <li><strong><code>origin</code></strong> is who produced the entry. Transport is request metadata, not stored.</li>
-  <li><strong><code>merged_by_embedding</code></strong> marks variants auto-folded from a fingerprint miss.</li>
-</ul>
+CREATE INDEX idx_solutions_variant
+    ON VariantSolutions (variant_id);
+
+-- Failures: append-only
+CREATE TABLE SolutionFailures (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    variant_id    UUID NOT NULL REFERENCES IncidentVariants(id) ON DELETE CASCADE,
+    solution_id   UUID REFERENCES VariantSolutions(id) ON DELETE SET NULL,
+    note          TEXT,
+    recorded_by   TEXT,
+    recorded_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_failures_variant
+    ON SolutionFailures (variant_id);
+
+-- Links: related anchors, possibly cross-domain, possibly cross-kind
+CREATE TABLE IncidentLinks (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    from_incident   UUID NOT NULL REFERENCES ProcessedIncidents(id) ON DELETE CASCADE,
+    to_incident     UUID NOT NULL REFERENCES ProcessedIncidents(id) ON DELETE CASCADE,
+    similarity      REAL NOT NULL,
+    relation        TEXT NOT NULL DEFAULT 'related',
+    kind            TEXT NOT NULL DEFAULT 'suggested'
+        CHECK (kind IN ('suggested','confirmed','rejected')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (from_incident, to_incident)
+);
+
+CREATE INDEX idx_links_from
+    ON IncidentLinks (from_incident) WHERE kind != 'rejected';
+CREATE INDEX idx_links_to
+    ON IncidentLinks (to_incident)   WHERE kind != 'rejected';
+
+-- System config (generic key-value; not for per-domain data)
+CREATE TABLE SystemConfig (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL
+);
+-- active_embedding_model
+-- lock_budget_ms
+-- linker_last_checkpoint</code></pre>
 
 <h2 id="paths"><span class="num">4</span> Ingestion paths</h2>
 
@@ -935,7 +1066,7 @@ CREATE UNIQUE INDEX one_current_solution_per_variant
   </tbody>
 </table>
 
-<h3 id="payload">4.1 · /ingest payload</h3>
+<h3>4.2 · /ingest payload</h3>
 
 <pre data-label="POST /ingest"><code class="language-json">{
   "kind": "error",
@@ -958,9 +1089,151 @@ CREATE UNIQUE INDEX one_current_solution_per_variant
   ]
 }</code></pre>
 
+<h3 id="whodoeswhat">4.4 · Who does what — the full pipeline</h3>
+
+<p>Every component, every transformation, in order. This is the complete inventory of processing steps across the system.</p>
+
+<div class="stages">
+
+  <div class="stage">
+    <div class="stage-header">
+      <span class="stage-num">STAGE 1</span>
+      <span class="stage-title">Edge — filter, hash, batch</span>
+      <span class="stage-actor client">Go Watcher</span>
+    </div>
+    <div class="stage-body">
+      <div class="stage-step"><span class="step-num">01</span><span class="step-text"><strong>Read</strong> — <code>journalctl -f</code> → raw line</span></div>
+      <div class="stage-step"><span class="step-num">02</span><span class="step-text"><strong>Filter</strong> — raw line × watch configs → matched | dropped; assigns <code>domain</code> from the matching config</span></div>
+      <div class="stage-step"><span class="step-num">03</span><span class="step-text"><strong>Buffer</strong> — matched lines → per-domain 5s window</span></div>
+      <div class="stage-step"><span class="step-num">04</span><span class="step-text"><strong>Canonicalize</strong> — raw text × domain rules → <code>shape_string</code></span></div>
+      <div class="stage-step"><span class="step-num">05</span><span class="step-text"><strong>Hash</strong> — <code>shape_hash = sha256(shape_string)</code></span></div>
+      <div class="stage-step"><span class="step-num">06</span><span class="step-text"><strong>Context</strong> — fields → JSON → sorted keys → canonical string</span></div>
+      <div class="stage-step"><span class="step-num">07</span><span class="step-text"><strong>Fingerprint</strong> — <code>context_fingerprint = sha256(canonical context)</code></span></div>
+      <div class="stage-step"><span class="step-num">08</span><span class="step-text"><strong>Local dedup</strong> — group by <code>(shape_hash, fingerprint)</code> → collapse; each group carries <code>collapsed_count</code></span></div>
+      <div class="stage-step"><span class="step-num">09</span><span class="step-text"><strong>Assign ID</strong> — collapsed observation → stable <code>event_id</code></span></div>
+      <div class="stage-step"><span class="step-num">10</span><span class="step-text"><strong>POST</strong> — batch → <code>POST /ingest</code></span></div>
+    </div>
+    <div class="stage-footer">
+      <strong>Does NOT compute:</strong> embeddings &nbsp;·&nbsp; <strong>Does NOT know:</strong> whether anchors exist
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-header">
+      <span class="stage-num">STAGE 2</span>
+      <span class="stage-title">API — re-canonicalize</span>
+      <span class="stage-actor server">Ingest API</span>
+    </div>
+    <div class="stage-body">
+      <div class="stage-step"><span class="step-num">11</span><span class="step-text"><strong>Receive</strong> — <code>POST /ingest</code> → batch</span></div>
+      <div class="stage-step"><span class="step-num">12</span><span class="step-text"><strong>Re-canonicalize</strong> — raw text × in-memory rules → authoritative <code>shape_hash</code></span></div>
+      <div class="stage-step"><span class="step-num">13</span><span class="step-text"><strong>Re-context</strong> — context fields → authoritative <code>context_fingerprint</code></span></div>
+    </div>
+    <div class="stage-footer">
+      Watcher's values are ignored; the API's win. <strong>No DB access yet.</strong>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-header">
+      <span class="stage-num">STAGE 3</span>
+      <span class="stage-title">Peek — read-only</span>
+      <span class="stage-actor server">Ingest API</span>
+    </div>
+    <div class="stage-body">
+      <div class="stage-step"><span class="step-num">14</span><span class="step-text"><strong>Anchor peek</strong> — SELECT anchor by <code>(kind, domain, shape_hash, shape_version)</code></span></div>
+      <div class="stage-step"><span class="step-num">15</span><span class="step-text"><strong>Variant peek</strong> — for each sample: SELECT variant by <code>(anchor_id, context_fingerprint)</code></span></div>
+    </div>
+    <div class="stage-footer">
+      <strong>Purpose:</strong> determine which case (A/B/C) we're in. <strong>Writes:</strong> none.
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-header">
+      <span class="stage-num">STAGE 4</span>
+      <span class="stage-title">Conditional embedding</span>
+      <span class="stage-actor server">Ingest API</span>
+    </div>
+    <div class="stage-body">
+      <div class="stage-step"><span class="step-num">16</span><span class="step-text"><strong>Shape embed</strong> — if anchor missing: <code>embed(shape_template)</code></span></div>
+      <div class="stage-step"><span class="step-num">17</span><span class="step-text"><strong>Context embed</strong> — for each sample whose variant is missing: <code>embed(context_canonical)</code></span></div>
+    </div>
+    <div class="stage-footer">
+      Only embed what's needed. Case A: nothing. Case B: contexts only. Case C: shape + contexts.
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-header">
+      <span class="stage-num">STAGE 5</span>
+      <span class="stage-title">Critical section — the only write path</span>
+      <span class="stage-actor server">Ingest API</span>
+    </div>
+    <div class="stage-body">
+      <div class="stage-step"><span class="step-num">18</span><span class="step-text"><strong>Sort</strong> — samples by <code>context_fingerprint</code> (deterministic)</span></div>
+      <div class="stage-step"><span class="step-num">19</span><span class="step-text"><strong>Branch</strong> — Case A | B | C, then run the appropriate path (see §5)</span></div>
+      <div class="stage-step"><span class="step-num">20</span><span class="step-text"><strong>Commit</strong> — durability. If new anchor: <code>NOTIFY anchor_created</code></span></div>
+    </div>
+    <div class="stage-footer">
+      <strong>Only place in the system that writes to anchors, variants, or counts.</strong>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-header">
+      <span class="stage-num">STAGE 6</span>
+      <span class="stage-title">Post-commit — link creation (async)</span>
+      <span class="stage-actor linker">Linker</span>
+    </div>
+    <div class="stage-body">
+      <div class="stage-step"><span class="step-num">21</span><span class="step-text"><strong>Receive</strong> — <code>anchor_created</code> NOTIFY or periodic sweep (5 min)</span></div>
+      <div class="stage-step"><span class="step-num">22</span><span class="step-text"><strong>Rate gate</strong> — count anchors per domain in the last minute</span></div>
+      <div class="stage-step"><span class="step-num">23</span><span class="step-text"><strong>ANN</strong> — within kind, cross-domain allowed, same embedding model only</span></div>
+      <div class="stage-step"><span class="step-num">24</span><span class="step-text"><strong>Insert link</strong> — <code>suggested</code> links, <code>ON CONFLICT DO NOTHING</code></span></div>
+    </div>
+    <div class="stage-footer">
+      Never blocks ingest. Backed by the periodic sweep for missed NOTIFYs.
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-header">
+      <span class="stage-num">STAGE 7</span>
+      <span class="stage-title">Lookup — read-only cascade</span>
+      <span class="stage-actor server">Ingest API</span>
+    </div>
+    <div class="stage-body">
+      <div class="stage-step"><span class="step-num">25</span><span class="step-text"><strong>Receive</strong> — <code>GET /lookup?text=...&context=...</code></span></div>
+      <div class="stage-step"><span class="step-num">26</span><span class="step-text"><strong>Canonicalize</strong> — text × rules → <code>shape_hash</code></span></div>
+      <div class="stage-step"><span class="step-num">27</span><span class="step-text"><strong>Combined query</strong> — LEFT JOIN anchor + variant by <code>(shape_hash, fingerprint)</code></span></div>
+      <div class="stage-step"><span class="step-num">28</span><span class="step-text"><strong>Branch</strong> — cascade (see §5.8): exact → variant KNN → anchor ANN</span></div>
+    </div>
+    <div class="stage-footer">
+      <strong>Read-only. Never writes.</strong>
+    </div>
+  </div>
+
+</div>
+
+<h3 id="costs">4.5 · Cost profile by path</h3>
+
+<table>
+  <thead><tr><th>Path</th><th>DB queries</th><th>Model calls</th><th>Advisory lock</th><th>ANN</th></tr></thead>
+  <tbody>
+    <tr><td>Ingest — Case A</td><td>1 + N updates</td><td>0</td><td>No</td><td>No</td></tr>
+    <tr><td>Ingest — Case B</td><td>1 + 1 + N</td><td>1 + misses</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Ingest — Case C</td><td>1 + 1 + N</td><td>2 + N</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Linker fast path</td><td>2 + 1 insert</td><td>0</td><td>No</td><td>1</td></tr>
+    <tr><td>Lookup — exact</td><td>1</td><td>0</td><td>No</td><td>No</td></tr>
+    <tr><td>Lookup — variant KNN</td><td>2</td><td>1</td><td>No</td><td>No</td></tr>
+    <tr><td>Lookup — anchor ANN</td><td>2</td><td>1</td><td>No</td><td>1</td></tr>
+  </tbody>
+</table>
+
 <h2 id="critical"><span class="num">5</span> The critical section</h2>
 
-<p><strong>Peek first, embed conditionally, lock only on insert, idempotency-gate every write.</strong></p>
+<p><strong>Peek first, embed conditionally, lock only on insert. Idempotency-gate every write.</strong></p>
 
 <div class="callout success">
   <div class="callout-title">The rule</div>
@@ -980,7 +1253,7 @@ CREATE UNIQUE INDEX one_current_solution_per_variant
   </div>
   <div class="path-card b">
     <div class="label">CASE B</div>
-    <div class="cond">Anchor exists. Some fingerprints miss.</div>
+    <div class="cond">Anchor exists. Some fingerprints miss. New context under known error.</div>
     <div class="metrics">
       <div class="metric"><span class="k">lock</span><span class="v yes">yes</span></div>
       <div class="metric"><span class="k">embed</span><span class="v partial">contexts</span></div>
@@ -1000,13 +1273,130 @@ CREATE UNIQUE INDEX one_current_solution_per_variant
   </div>
 </div>
 
+<div class="callout info">
+  <div class="callout-title">Thresholds (tunable)</div>
+  <p><code>&lt; 0.10</code> → candidate same variant (increment count, set <code>merged_by_embedding=true</code>). <code>0.10–0.20</code> → borderline (<code>needs_review</code>). <code>≥ 0.20</code> → novel cause (<code>active</code>). These are classification heuristics, not correctness rules.</p>
+</div>
+
+<div class="callout warn">
+  <div class="callout-title">Per-incident KNN does not route through HNSW</div>
+  <p>The candidate set under one anchor is small. The planner uses <code>idx_variants_incident</code> and does an exact sort. The HNSW index on <code>context_embedding</code> exists for future global queries but is not on this path.</p>
+</div>
+
+<h3 id="lookup">5.8 · The lookup cascade</h3>
+
+<p>Lookup is a read-only mirror of the ingest critical section. It resolves anchor and variant in one query, then fans out only as needed.</p>
+
+<h4>The single query — resolves the first two guards in one round trip</h4>
+
+<pre data-label="lookup.sql"><code class="language-sql">SELECT a.id AS anchor_id, v.id AS variant_id
+FROM ProcessedIncidents a
+LEFT JOIN IncidentVariants v
+  ON v.incident_id = a.id
+ AND v.context_fingerprint = $fp
+WHERE a.kind=$kind
+  AND a.domain=$domain
+  AND a.shape_hash=$shape_hash
+  AND a.shape_version=$shape_version;</code></pre>
+
+<h4>The three-branch expression</h4>
+
+<pre><code>match = fingerprint_hit ? exact_variant(row)
+      : anchor_hit      ? knn_variant(row.anchor_id)
+      :                   ann_anchor(embed(text))</code></pre>
+
+<div class="cascade">
+
+  <div class="cascade-level l1">
+    <div class="cascade-label">Level 1<br/>EXACT</div>
+    <div class="cascade-body">
+      <div class="guard">guard: fingerprint hit (row has variant_id)</div>
+      <div class="action">Return the exact variant + its current solution.</div>
+      <div class="cost">
+        <span class="cell">DB: <span class="val-zero">1 query</span></span>
+        <span class="cell">embed: <span class="val-zero">none</span></span>
+        <span class="cell">ANN: <span class="val-zero">none</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cascade-level l2">
+    <div class="cascade-label">Level 2<br/>VARIANT</div>
+    <div class="cascade-body">
+      <div class="guard">guard: anchor hit, variant miss</div>
+      <div class="action">KNN over this anchor's variants. Embed context only.</div>
+      <div class="cost">
+        <span class="cell">DB: <span class="val-one">2 queries</span></span>
+        <span class="cell">embed: <span class="val-one">1 (context)</span></span>
+        <span class="cell">ANN: <span class="val-zero">none</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cascade-level l3">
+    <div class="cascade-label">Level 3<br/>ANCHOR</div>
+    <div class="cascade-body">
+      <div class="guard">guard: no anchor at all</div>
+      <div class="action">Embed text, ANN over anchors (LIMIT 1). Return that anchor's top variant.</div>
+      <div class="cost">
+        <span class="cell">DB: <span class="val-one">2 queries</span></span>
+        <span class="cell">embed: <span class="val-one">1 (text)</span></span>
+        <span class="cell">ANN: <span class="val-one">1</span></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="callout success">
+  <div class="callout-title">Pruning</div>
+  <p>Each guard prevents the next expensive operation. <code>fingerprint_hit</code> → skips entire embedding path. <code>anchor_hit</code> → skips anchor-level embedding + ANN. No anchor → nothing to KNN against.</p>
+</div>
+
+<h4>Response shape</h4>
+
+<pre data-label="/lookup response"><code class="language-json">{
+  "found": true,
+  "anchor_id": "uuid",
+  "variant_id": "uuid",
+  "solution": "systemctl start postgres",
+  "distance": 0.08,
+  "verified": true
+}</code></pre>
+
+<table>
+  <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>found</code></td><td>false if nothing matched</td></tr>
+    <tr><td><code>anchor_id</code></td><td>set if anchor matched (exact or via ANN)</td></tr>
+    <tr><td><code>variant_id</code></td><td>set if variant resolved; null if anchor known but no variant matched</td></tr>
+    <tr><td><code>solution</code></td><td>current solution text, if variant resolved and has one</td></tr>
+    <tr><td><code>distance</code></td><td>null for exact match; 0.0–0.20 for semantic</td></tr>
+    <tr><td><code>verified</code></td><td>true if the current solution was human-verified</td></tr>
+  </tbody>
+</table>
+
+<div class="callout info">
+  <div class="callout-title">One threshold: 0.20</div>
+  <p>Ingest uses 0.10 / 0.20 because it's <em>deciding</em> (match / needs_review / new). Lookup uses 0.20 because it's <em>retrieving</em> (found / not found). Different operations, same cutoff number.</p>
+</div>
+
+<div class="callout success">
+  <div class="callout-title">Case 2 at lookup time</div>
+  <p>When a query's wording differs enough to produce a new shape_hash, the anchor-level ANN surfaces the related anchor's solution <em>immediately</em> — not after the linker's next pass. This is what makes Case 2 work on the <em>first</em> lookup of a new wording.</p>
+</div>
+
+<p><strong>Query embedding cache.</strong> Keyed on <code>sha256(text + active_model)</code>. LRU ~1000 entries. Repeat lookups of the same unfamiliar wording skip the model call.</p>
+
 <h2 id="canon"><span class="num">6</span> Canonicalization &amp; shape hashing</h2>
 
 <pre data-label="watch.yaml"><code class="language-yaml">rules:
   - pattern: "/dev/sd[a-z]"
     replace: "&lt;DEV&gt;"
   - pattern: "pid [0-9]+"
-    replace: "pid &lt;PID&gt;"</code></pre>
+    replace: "pid &lt;PID&gt;"
+  - pattern: "0x[0-9a-fA-F]+"
+    replace: "&lt;HEX&gt;"</code></pre>
 
 <pre data-label="deterministic hash"><code>shape_string = apply_rules(canonical_error_line)
              | canonical_error_line   -- if no rule matches
@@ -1016,7 +1406,7 @@ shape_hash   = sha256(shape_string)</code></pre>
 
 <div class="callout info">
   <div class="callout-title">Dual-layer design</div>
-  <p>Deterministic hashing collapses structurally similar text into anchors. Semantic linking bridges anchors that are textually distinct but conceptually related. Both layers are necessary; neither alone is sufficient.</p>
+  <p>Deterministic hashing collapses structurally similar text into anchors. Semantic linking bridges anchors that are textually distinct but conceptually related. Both layers are necessary.</p>
 </div>
 
 <h2 id="context"><span class="num">7</span> Context (the variant key)</h2>
@@ -1035,7 +1425,7 @@ context_fingerprint = sha256(context_canonical)
 context_embedding   = embed(context_canonical)</code></pre>
 
 <h4>Fingerprint vs. variant</h4>
-<p>A <strong>context fingerprint</strong> is an exact identifier. A <strong>variant</strong> is a semantic cause group. Multiple fingerprints may map to one variant when the KNN gate finds them close enough.</p>
+<p>A <strong>context fingerprint</strong> is an exact identifier. A <strong>variant</strong> is a semantic cause group. Multiple fingerprints may map to one variant when the KNN gate finds them close enough. When that happens, <code>occurrence_count</code> absorbs the new count and <code>merged_by_embedding</code> is set for audit.</p>
 
 <h2 id="versioning"><span class="num">8</span> Solution versioning (Case 3b)</h2>
 
@@ -1058,9 +1448,14 @@ VALUES ($variant_id, $text, $recorded_by, false);
 
 COMMIT;</code></pre>
 
+<div class="callout warn">
+  <div class="callout-title">No advisory lock needed</div>
+  <p>The partial unique index and conditional supersede handle concurrency. Lost updates return 409.</p>
+</div>
+
 <h2 id="linking"><span class="num">9</span> Linking (Case 2)</h2>
 
-<p>Runs post-commit. Triggered by <code>NOTIFY anchor_created</code>. Backed up by a periodic sweep so missed notifications don't silently orphan anchors.</p>
+<p>Runs post-commit. Triggered by <code>NOTIFY anchor_created</code>. Backed up by a periodic sweep.</p>
 
 <div class="flow">
   <div class="flow-step">
@@ -1073,6 +1468,21 @@ COMMIT;</code></pre>
   </div>
 </div>
 
+<h4>Links vs. lookup ANN</h4>
+<p>Both find related anchors, but they serve different purposes:</p>
+
+<table>
+  <thead><tr><th></th><th>Lookup ANN</th><th>Links</th></tr></thead>
+  <tbody>
+    <tr><td><strong>When</strong></td><td>On demand</td><td>Persistent</td></tr>
+    <tr><td><strong>Purpose</strong></td><td>Find the answer to this query</td><td>Browse "anchors related to X"</td></tr>
+    <tr><td><strong>Cost</strong></td><td>One ANN query</td><td>Join or scan</td></tr>
+    <tr><td><strong>Consumers</strong></td><td>Agent</td><td><code>/links</code>, UI</td></tr>
+  </tbody>
+</table>
+
+<p>Lookup does <strong>not</strong> traverse <code>IncidentLinks</code>. The ANN fallback in §5.8 covers the retrieval need directly. Links exist for browsing and review.</p>
+
 <h2 id="config"><span class="num">10</span> Config engine</h2>
 
 <pre data-label="config/watches/hibernation.yaml"><code class="language-yaml">id: hibernation-fedora
@@ -1084,73 +1494,110 @@ rules:
 context_fields: [unit, host, kernel, device]
 batch_window_seconds: 5</code></pre>
 
+<p>Watcher loads all configs at startup, reloads on <code>SIGHUP</code>. Each config gets its own filter, rules, batch window, and local dedup state.</p>
+
 <h2 id="embedding"><span class="num">11</span> Embedding plugin</h2>
 
 <pre data-label="interface"><code>interface EmbeddingProvider {
     modelId(): string                 // "all-MiniLM-L6-v2"
     dimensions(): number              // 384
     embed(text: string): Promise&lt;number[]&gt;
+    embedBatch(texts: string[]): Promise&lt;number[][]&gt;
 }</code></pre>
 
+<h4>When embedding is called</h4>
 <table>
   <thead><tr><th>Situation</th><th>Shape embed</th><th>Context embed</th></tr></thead>
   <tbody>
     <tr><td>Case A (fast path)</td><td>No</td><td>No</td></tr>
     <tr><td>Case B</td><td>No</td><td>Fingerprint misses only</td></tr>
     <tr><td>Case C</td><td>Yes</td><td>All samples</td></tr>
-    <tr><td>Lookup, anchor found</td><td>No</td><td>Fingerprint misses only</td></tr>
+    <tr><td><strong>Lookup, anchor missing</strong></td><td><strong>Yes</strong></td><td>No</td></tr>
+    <tr><td>Lookup, anchor found, variant missing</td><td>No</td><td>Yes</td></tr>
+    <tr><td>Lookup, exact variant hit</td><td>No</td><td>No</td></tr>
   </tbody>
 </table>
 
+<div class="callout warn">
+  <div class="callout-title">Model swap</div>
+  <p>During a model change, KNN and linking only compare same-model vectors. Cross-model matches are suppressed, not misclassified.</p>
+</div>
+
 <h2 id="api"><span class="num">12</span> API surface</h2>
 
-<pre><code>POST   /ingest                   watcher batch
-POST   /ingest/sync              single item
-GET    /lookup                   lookup by text + context
+<h4>Ingest</h4>
+<pre><code>POST   /ingest                   watcher batch (event_id per sample)
+POST   /ingest/sync              single item (MCP, CLI, dashboard)</code></pre>
+
+<h4>Read</h4>
+<pre><code>GET    /lookup                   lookup by text + context
 GET    /search                   semantic + filtered search
 GET    /incidents                list anchors
 GET    /incidents/:id            anchor detail + variants
-GET    /variants/:id             variant detail
-POST   /variants/:id/solutions   record solution
+GET    /variants/:id             variant detail + solution history
+GET    /links                    list links
+GET    /domains                  list domains</code></pre>
+
+<h4>Write</h4>
+<pre><code>POST   /variants/:id/solutions   record solution (supersedes current)
 POST   /variants/:id/failures    record failure
 POST   /variants/:id/verify      verify current solution
+PATCH  /variants/:id             edit variant (expected_version required)
 POST   /links                    explicit link
-PATCH  /links/:id                confirm / reject
-GET    /domains                  list domains
-WS     /events                   live broadcast</code></pre>
+PATCH  /links/:id                confirm / reject</code></pre>
+
+<h4>Events</h4>
+<pre><code>WS     /events                   live broadcast</code></pre>
+
+<h4>Concurrency</h4>
+<ul>
+  <li><code>PATCH /variants/:id</code> requires <code>expected_version</code>. Mismatch → 409.</li>
+  <li>Solution writes require <code>expected_solution_id</code>. Mismatch → 409.</li>
+  <li>Lock contention on ingest returns <code>503</code> with <code>Retry-After: 1</code>.</li>
+</ul>
 
 <h2 id="mcp"><span class="num">13</span> MCP surface</h2>
-
-<p>MCP is a subset of the API, reshaped as agent tools. It is not a gateway.</p>
 
 <table>
   <thead><tr><th>MCP tool</th><th>Maps to</th></tr></thead>
   <tbody>
     <tr><td><code>lookup_error</code></td><td><code>GET /lookup</code></td></tr>
     <tr><td><code>search_memory</code></td><td><code>GET /search</code></td></tr>
-    <tr><td><code>record_problem</code></td><td><code>POST /ingest/sync</code></td></tr>
+    <tr><td><code>record_problem</code></td><td><code>POST /ingest/sync</code> (kind=problem)</td></tr>
+    <tr><td><code>record_decision</code></td><td><code>POST /ingest/sync</code> (kind=decision)</td></tr>
     <tr><td><code>record_solution</code></td><td><code>POST /variants/:id/solutions</code></td></tr>
+    <tr><td><code>report_solution_failure</code></td><td><code>POST /variants/:id/failures</code></td></tr>
+    <tr><td><code>verify_solution</code></td><td><code>POST /variants/:id/verify</code></td></tr>
+    <tr><td><code>link_anchors</code></td><td><code>POST /links</code></td></tr>
     <tr><td><code>list_domains</code></td><td><code>GET /domains</code></td></tr>
   </tbody>
 </table>
 
+<p><strong>Read-only:</strong> <code>lookup_error</code>, <code>search_memory</code>, <code>list_domains</code>.</p>
+
 <h2 id="invariants"><span class="num">14</span> Invariants</h2>
 
 <ol class="invariants">
-  <li><span class="n">01</span><span><strong>HTTP idempotency.</strong> Every observation has a stable <code>event_id</code>.</span></li>
+  <li><span class="n">01</span><span><strong>HTTP idempotency.</strong> Every observation has a stable <code>event_id</code>. Count increments are paired with a <code>ProcessedIngests</code> insert in the same transaction.</span></li>
   <li><span class="n">02</span><span><strong>Determinism.</strong> <code>shape_hash</code> is a pure function of <code>(shape_string, shape_version)</code>.</span></li>
-  <li><span class="n">03</span><span><strong>Deterministic batch order.</strong> Samples sorted by <code>context_fingerprint</code>.</span></li>
+  <li><span class="n">03</span><span><strong>Deterministic batch order.</strong> Samples sorted by <code>context_fingerprint</code> before processing.</span></li>
   <li><span class="n">04</span><span><strong>Anchor uniqueness.</strong> One anchor per <code>(kind, domain, shape_hash, shape_version)</code>.</span></li>
   <li><span class="n">05</span><span><strong>Variant uniqueness.</strong> One row per <code>(incident_id, context_fingerprint)</code>.</span></li>
   <li><span class="n">06</span><span><strong>One current solution.</strong> Partial unique index.</span></li>
-  <li><span class="n">07</span><span><strong>Solution concurrency.</strong> Conditional supersede + partial unique index.</span></li>
-  <li><span class="n">08</span><span><strong>Bounded critical section.</strong> Lock budget 2,000ms.</span></li>
+  <li><span class="n">07</span><span><strong>Solution concurrency.</strong> Conditional supersede + partial unique index. No lost updates.</span></li>
+  <li><span class="n">08</span><span><strong>Bounded critical section.</strong> Lock budget 2,000ms. Timeout → 503.</span></li>
   <li><span class="n">09</span><span><strong>Lock only on insert.</strong> Fast path (Case A) takes no advisory lock.</span></li>
-  <li><span class="n">10</span><span><strong>Post-commit notify.</strong> NOTIFY only after COMMIT.</span></li>
-  <li><span class="n">11</span><span><strong>Linker backstop.</strong> Periodic sweep processes missed anchors.</span></li>
-  <li><span class="n">12</span><span><strong>Cross-model suppression.</strong> KNN and linking compare same-model vectors only.</span></li>
-  <li><span class="n">13</span><span><strong>One API, many clients.</strong> MCP is not in the path of any non-agent client.</span></li>
-  <li><span class="n">14</span><span><strong>Embedding is a candidate signal.</strong> Fingerprint hits are authoritative.</span></li>
+  <li><span class="n">10</span><span><strong>Single transaction.</strong> Winning lock attempt carries through to COMMIT.</span></li>
+  <li><span class="n">11</span><span><strong>Post-commit notify.</strong> NOTIFY only after COMMIT, only if new.</span></li>
+  <li><span class="n">12</span><span><strong>Linker backstop.</strong> Periodic sweep processes anchors the NOTIFY missed.</span></li>
+  <li><span class="n">13</span><span><strong>Linking outside the lock.</strong> Linker never blocks ingest.</span></li>
+  <li><span class="n">14</span><span><strong>Embedding outside the lock.</strong> All embedding before lock acquisition.</span></li>
+  <li><span class="n">15</span><span><strong>Peek before embed.</strong> Known errors pay no embedding cost.</span></li>
+  <li><span class="n">16</span><span><strong>Cross-model suppression.</strong> KNN and linking compare same-model vectors only.</span></li>
+  <li><span class="n">17</span><span><strong>One API, many clients.</strong> MCP is not in the path of any non-agent client.</span></li>
+  <li><span class="n">18</span><span><strong>Embedding is a candidate signal.</strong> Fingerprint hits are authoritative. Auto-merges are auditable.</span></li>
+  <li><span class="n">19</span><span><strong>Lookup is a cascade with pruning.</strong> Exact → variant KNN → anchor ANN. Each guard prevents the next expensive operation.</span></li>
+  <li><span class="n">20</span><span><strong>One lookup threshold.</strong> 0.20 for both variant KNN and anchor ANN.</span></li>
 </ol>
 
 <h2 id="defaults"><span class="num">15</span> Chosen defaults</h2>
@@ -1158,17 +1605,27 @@ WS     /events                   live broadcast</code></pre>
 <table>
   <thead><tr><th>#</th><th>Decision</th><th>Revisit if</th></tr></thead>
   <tbody>
-    <tr><td>1</td><td>Lock budget 2,000ms</td><td>Contention observed</td></tr>
-    <tr><td>2</td><td>Retry interval 50ms + jitter</td><td>Latency noticeable</td></tr>
-    <tr><td>3</td><td>Embedding: all-MiniLM-L6-v2, local</td><td>Quality insufficient</td></tr>
-    <tr><td>4</td><td>Distance thresholds: 0.10 / 0.20</td><td>Misclassification</td></tr>
-    <tr><td>5</td><td>Cross-kind linking: explicit only</td><td>Agents want auto</td></tr>
-    <tr><td>6</td><td>Linker sweep interval: 5 minutes</td><td>Missed links observed</td></tr>
-    <tr><td>7</td><td>Rules authored manually</td><td>Rule count &gt; ~30</td></tr>
-    <tr><td>8</td><td>Retention: nothing deleted</td><td>DB &gt; 1GB</td></tr>
-    <tr><td>9</td><td>Watcher batch: 5s per domain</td><td>Domain count × latency noticeable</td></tr>
-    <tr><td>10</td><td>Peek-before-embed</td><td>Never</td></tr>
-    <tr><td>11</td><td>origin replaces source</td><td>Transport tracking needed</td></tr>
+    <tr><td>1</td><td>Lock budget 2,000ms all paths</td><td>Contention observed</td></tr>
+    <tr><td>2</td><td>Retry interval 50ms + jitter 0–25ms</td><td>Latency noticeable</td></tr>
+    <tr><td>3</td><td>Embedding: all-MiniLM-L6-v2, ONNX, local</td><td>Quality insufficient</td></tr>
+    <tr><td>4</td><td>Lookup threshold: 0.20 for both variant KNN and anchor ANN</td><td>Misclassification</td></tr>
+    <tr><td>5</td><td>Ingest thresholds: 0.10 / 0.20</td><td>Misclassification</td></tr>
+    <tr><td>6</td><td>Cross-kind linking: explicit only</td><td>Agents want auto</td></tr>
+    <tr><td>7</td><td>Linking rate cap per domain: 100/min</td><td>Never hit at personal scale</td></tr>
+    <tr><td>8</td><td>Linker sweep interval: 5 minutes</td><td>Missed links observed</td></tr>
+    <tr><td>9</td><td>Rules authored manually</td><td>Rule count &gt; ~30</td></tr>
+    <tr><td>10</td><td>Retention: nothing deleted except ProcessedIngests</td><td>DB &gt; 1GB</td></tr>
+    <tr><td>11</td><td>ProcessedIngests retention: 24 hours</td><td>Retries crossing the window</td></tr>
+    <tr><td>12</td><td>Cold-start: lookup returns <code>{found: false}</code></td><td>Never</td></tr>
+    <tr><td>13</td><td>Feedback: best-effort</td><td>Accuracy degrades silently</td></tr>
+    <tr><td>14</td><td>Watcher batch: 5s per domain</td><td>Domain count × latency noticeable</td></tr>
+    <tr><td>15</td><td>Model change: re-embed all; suppress cross-model</td><td>Model changes frequently</td></tr>
+    <tr><td>16</td><td>Solution text: free-form markdown</td><td>Structured fields needed</td></tr>
+    <tr><td>17</td><td>Problems and errors share variant space</td><td>Divergent semantics</td></tr>
+    <tr><td>18</td><td>CLI is v1; dashboard deferred</td><td>Browser UI needed first</td></tr>
+    <tr><td>19</td><td>Peek-before-embed</td><td>Never</td></tr>
+    <tr><td>20</td><td>origin replaces source; transport not stored</td><td>Transport tracking needed</td></tr>
+    <tr><td>21</td><td>Lookup query embedding cache: LRU ~1000</td><td>Cache hit rate near zero</td></tr>
   </tbody>
 </table>
 
@@ -1177,18 +1634,23 @@ WS     /events                   live broadcast</code></pre>
 <details>
   <summary>Show deferred items</summary>
   <ul>
-    <li><strong>React dashboard.</strong></li>
-    <li><strong>Staging table + async variant worker.</strong> If batch × latency exceeds budget.</li>
-    <li><strong>Hierarchical domains.</strong></li>
-    <li><strong>Cross-version retrieval.</strong></li>
+    <li><strong>React dashboard.</strong> Browse, confirm links, review <code>needs_review</code> variants.</li>
+    <li><strong>Staging table + async variant worker.</strong> Added if batch × latency exceeds budget.</li>
+    <li><strong>Hierarchical domains.</strong> <code>hibernation/nvidia</code> etc.</li>
+    <li><strong>Kind expansion beyond three.</strong> Use tags, not new key parts.</li>
+    <li><strong>Cross-version retrieval.</strong> When <code>shape_version</code> bumps, all versions or only current?</li>
     <li><strong>Auto template mining.</strong></li>
     <li><strong>Auto cross-kind linking.</strong></li>
     <li><strong>Durable broadcast</strong> beyond the periodic sweep.</li>
-    <li><strong>Retention and archival.</strong></li>
-    <li><strong>Domain renaming.</strong></li>
-    <li><strong>Mirrored IncidentLinks.</strong> A→B and B→A can both exist.</li>
-    <li><strong>Reassignment audit trail.</strong></li>
-    <li><strong>ProcessedIngests growth.</strong> Not pruned in v1.</li>
+    <li><strong>Retention and archival</strong> of old solutions.</li>
+    <li><strong>Domain renaming.</strong> <code>Domains.name</code> is a namespace identifier; a rename requires aliasing.</li>
+    <li><strong>Watcher restart loses in-flight batch.</strong> Idempotency keys prevent double-counting if reused.</li>
+    <li><strong>Mirrored IncidentLinks.</strong> <code>A→B</code> and <code>B→A</code> can both exist as separate rows.</li>
+    <li><strong>HNSW + filter caveat.</strong> If variants-per-anchor grows into thousands, revisit indexing strategy.</li>
+    <li><strong>Reassignment audit trail.</strong> Human corrections of <code>needs_review</code> aren't logged.</li>
+    <li><strong>Multi-candidate lookup results.</strong> Currently LIMIT 1 for the anchor ANN. Add LIMIT 5 with a candidate list if agents want to disambiguate.</li>
+    <li><strong>Link traversal at lookup.</strong> Not needed while the ANN fallback exists.</li>
+    <li><strong>Distributed ingestion.</strong> Multiple machines, queue-based. Add <code>RawLines</code> table + drain worker.</li>
   </ul>
 </details>
 
@@ -1199,15 +1661,85 @@ WS     /events                   live broadcast</code></pre>
   <li><strong>Not a log store.</strong> Stores shapes, contexts, solutions — not raw log lines.</li>
   <li><strong>Not real-time.</strong> 5s batch + async linker + periodic sweep.</li>
   <li><strong>Not multi-user.</strong> Shared knowledge is within one machine.</li>
+  <li><strong>Not durable for broadcast.</strong> LISTEN/NOTIFY is at-most-once; the sweep is the backstop.</li>
   <li><strong>Not distributed.</strong> One Postgres, one API, one watcher.</li>
 </ul>
+
+<h2 id="impl"><span class="num">18</span> Implementation notes</h2>
+
+<h4>Dockerization</h4>
+<p><strong>Docker for Postgres only. Native for the code you iterate on.</strong></p>
+
+<pre data-label="docker-compose.yml"><code class="language-yaml">services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: idempotency
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d idempotency"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:</code></pre>
+
+<h4>ORM vs. raw SQL</h4>
+<table>
+  <thead><tr><th>Layer</th><th>Tool</th><th>Reason</th></tr></thead>
+  <tbody>
+    <tr><td>Schema</td><td>DbUp or plain <code>.sql</code> files</td><td>Full control; no generator fights</td></tr>
+    <tr><td>Domain model</td><td>C# records</td><td>Plain data types</td></tr>
+    <tr><td>Read paths (browse/search)</td><td>EF Core (no-tracking)</td><td>LINQ convenient for filters</td></tr>
+    <tr><td>Critical section</td><td>Dapper or NpgsqlCommand</td><td>Explicit SQL, no tracking</td></tr>
+    <tr><td>Lookup cascade</td><td>Dapper or raw SQL</td><td><code>&lt;=&gt;</code>, LEFT JOIN guard, conditional ANN</td></tr>
+    <tr><td>Vector queries</td><td>Raw SQL</td><td><code>&lt;=&gt;</code> is not a LINQ thing</td></tr>
+    <tr><td>Advisory locks</td><td>Raw SQL</td><td>Not a LINQ thing</td></tr>
+  </tbody>
+</table>
+
+<h4>Retention job</h4>
+<pre data-label="retention.sql"><code class="language-sql">DELETE FROM ProcessedIngests
+WHERE processed_at < now() - interval '24 hours';</code></pre>
+<p>Run hourly via <code>pg_cron</code>, a systemd timer, or a background task.</p>
+
+<h4>Project structure</h4>
+<pre><code>src/
+  IdempotencyEngine.Domain/
+    Models/                      ← C# records
+    Interfaces/
+
+  IdempotencyEngine.Data/
+    Migrations/                  ← DbUp SQL files
+    DbContext.cs                 ← EF Core, read-only use
+    ReadRepositories/            ← EF Core reads
+    WriteRepositories/           ← Dapper + raw SQL
+
+  IdempotencyEngine.Api/
+    Controllers/
+    Ingestion/                   ← critical section
+    Lookup/                      ← lookup cascade
+
+  IdempotencyEngine.Watcher/     ← Go, per-endpoint
+
+  IdempotencyEngine.Mcp/         ← Node.js MCP adapter
+
+  IdempotencyEngine.Cli/         ← thin HTTP wrapper</code></pre>
 
 <div class="callout success" style="margin-top:48px">
   <div class="callout-title">Summary</div>
   <p><strong>Four mechanisms:</strong> collapse (hashing), discriminate (context + embedding), relate (linking), version (solutions).</p>
-  <p style="margin-top:8px"><strong>Two axes:</strong> <code>kind</code> and <code>domain</code>. Everything else is context or config.</p>
-  <p style="margin-top:8px"><strong>Eight tables:</strong> four model entities (anchor, variant, solution, link), two are metadata (domain, config), one gates ingestion, one logs failures.</p>
+  <p style="margin-top:8px"><strong>Ingest:</strong> peek first, embed conditionally, lock only on insert, idempotency-gate every write.</p>
+  <p style="margin-top:8px"><strong>Lookup:</strong> three-branch cascade — exact → variant KNN → anchor ANN. One query for the first two guards, one threshold (0.20), one response shape.</p>
   <p style="margin-top:8px"><strong>One API, many clients.</strong> MCP is the agent adapter — not a gateway.</p>
+  <p style="margin-top:8px"><strong>Linker is best-effort with a sweep backstop.</strong> Links are for browsing; lookup uses ANN directly.</p>
 </div>
 
 </main>
