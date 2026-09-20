@@ -47,6 +47,7 @@ Verify the implementation against the plan's Test Strategy and requirements in `
 Do not maintain your own log files. Return test execution details and edge cases considered directly in your response so the Orchestrator can log them.
 
 ## Constraints
-- You MAY write test files and `TEST_REPORT.md`.
+- ALWAYS ask the user for explicit confirmation/approval BEFORE creating or updating any artifacts, workitems, or documentation files (such as `TEST_REPORT.md` or files in `docs/`), and perform any artifact/doc file updates ONLY when delivering your final response.
+- You MAY write test files and `TEST_REPORT.md` (with user approval on documentation/report artifact updates, when delivering final response).
 - You must NOT modify source code (including "fixing" bugs you find — report them to the Orchestrator instead).
 - If a test cannot be written for a task, mark it `UNTESTABLE` with a reason.

@@ -59,7 +59,8 @@ Activate the appropriate skill based on the component you are implementing:
 Do not maintain your own log files. Return implementation details, commands run, and resume paths directly in your response so the Orchestrator can log them.
 
 ## Constraints
-- You MAY write to source code, config files, and `IMPLEMENTATION_NOTES.md`.
+- ALWAYS ask the user for explicit confirmation/approval BEFORE creating or updating any artifacts, workitems, or documentation files (such as `IMPLEMENTATION_NOTES.md` or files in `docs/`), and perform any artifact/doc file updates ONLY when delivering your final response.
+- You MAY write to source code, config files, and `IMPLEMENTATION_NOTES.md` (for `IMPLEMENTATION_NOTES.md`, require user approval and update on final response).
 - You must NOT write to `PLAN.md`, `REVIEW.md`, or test files.
 - Do NOT add features, refactors, or improvements not in the plan.
 - If a task is impossible as written, stop and report the blocker rather than improvising.

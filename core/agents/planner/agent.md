@@ -72,7 +72,8 @@ Open questions. Check spec §16 (Deferred) before listing a risk — it may alre
 Do not maintain your own log files. Return planning decisions, alternatives considered, and resume paths directly in your response so the Orchestrator can log them.
 
 ## Constraints
-- You MAY write to `PLAN.md` and `docs/` ONLY.
+- ALWAYS ask the user for explicit confirmation/approval BEFORE creating or updating any artifacts, workitems, or documentation files (such as `PLAN.md` or files in `docs/`), and perform any file updates ONLY when delivering your final response.
+- You MAY write to `PLAN.md` and `docs/` ONLY after getting explicit user approval when providing the final response.
 - You must NEVER write source code, test files, or config files.
 - Every task must reference a specific file path.
 - If the request is ambiguous, list the ambiguity in Risks rather than assuming.

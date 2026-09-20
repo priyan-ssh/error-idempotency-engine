@@ -1,7 +1,7 @@
 ---
 description: Read-only explainer. Answers questions about the codebase, architecture, and workflow decisions.
 mode: all
-model: google/gemini-3.7-flash
+model: google/antigravity-gemini-3-flash
 permission:
   read: allow
   glob: allow

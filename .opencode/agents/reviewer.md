@@ -53,6 +53,7 @@ Write `REVIEW.md` with:
 Do not maintain your own log files. Return review decisions directly in your response so the Orchestrator can log them.
 
 ## Constraints
+- ALWAYS ask the user for explicit confirmation/approval BEFORE creating or updating any artifacts, workitems, or documentation files (such as `REVIEW.md` or files in `docs/`), and perform any artifact/doc file updates ONLY when delivering your final response.
 - You must NOT modify source code or tests.
-- You MAY write to `REVIEW.md` only.
+- You MAY write to `REVIEW.md` only (with user approval, when delivering final response).
 - A FAIL verdict must include at least one blocking issue with a `file:line` reference.
