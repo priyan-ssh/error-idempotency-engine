@@ -1,3 +1,6 @@
+-- =============================================================================
+-- ProcessedIngests: Idempotency gate (one row per processed observation)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS ProcessedIngests (
     event_id TEXT PRIMARY KEY,
     processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -5,6 +8,9 @@ CREATE TABLE IF NOT EXISTS ProcessedIngests (
 
 CREATE INDEX IF NOT EXISTS idx_ingests_processed_at ON ProcessedIngests (processed_at);
 
+-- =============================================================================
+-- Domains: Namespace registry holding per-domain shape_version
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS Domains (
     name TEXT PRIMARY KEY,
     description TEXT,
@@ -12,6 +18,9 @@ CREATE TABLE IF NOT EXISTS Domains (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- =============================================================================
+-- ProcessedIncidents: Anchors (one row per kind, domain, shape_hash, shape_version)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS ProcessedIncidents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     kind TEXT NOT NULL CHECK (kind IN ('log_error', 'exception', 'panic', 'build_failure', 'test_failure', 'custom')),
@@ -31,6 +40,9 @@ CREATE INDEX IF NOT EXISTS idx_incidents_kind_domain ON ProcessedIncidents (kind
 CREATE INDEX IF NOT EXISTS idx_incidents_domain_created ON ProcessedIncidents (domain, created_at);
 CREATE INDEX IF NOT EXISTS idx_incidents_embedding ON ProcessedIncidents USING hnsw (error_embedding vector_cosine_ops);
 
+-- =============================================================================
+-- IncidentVariants: Variants (one row per incident_id and context_fingerprint)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS IncidentVariants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incident_id UUID NOT NULL REFERENCES ProcessedIncidents(id) ON DELETE CASCADE,
@@ -52,6 +64,9 @@ CREATE TABLE IF NOT EXISTS IncidentVariants (
 CREATE INDEX IF NOT EXISTS idx_variants_incident ON IncidentVariants (incident_id);
 CREATE INDEX IF NOT EXISTS idx_variants_embedding ON IncidentVariants USING hnsw (context_embedding vector_cosine_ops);
 
+-- =============================================================================
+-- VariantSolutions: Solutions (versioned, one current per variant)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS VariantSolutions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     variant_id UUID NOT NULL REFERENCES IncidentVariants(id) ON DELETE CASCADE,
@@ -68,6 +83,9 @@ CREATE TABLE IF NOT EXISTS VariantSolutions (
 CREATE UNIQUE INDEX IF NOT EXISTS one_current_solution_per_variant ON VariantSolutions (variant_id) WHERE superseded_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_solutions_variant ON VariantSolutions (variant_id);
 
+-- =============================================================================
+-- SolutionFailures: Failure log (append-only log of failed solutions)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS SolutionFailures (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     variant_id UUID NOT NULL REFERENCES IncidentVariants(id) ON DELETE CASCADE,
@@ -78,6 +96,9 @@ CREATE TABLE IF NOT EXISTS SolutionFailures (
 
 CREATE INDEX IF NOT EXISTS idx_failures_variant ON SolutionFailures (variant_id);
 
+-- =============================================================================
+-- IncidentLinks: Links (relationships between anchors)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS IncidentLinks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     from_incident UUID NOT NULL REFERENCES ProcessedIncidents(id) ON DELETE CASCADE,
@@ -92,6 +113,9 @@ CREATE TABLE IF NOT EXISTS IncidentLinks (
 CREATE INDEX IF NOT EXISTS idx_links_from ON IncidentLinks (from_incident) WHERE kind != 'rejected';
 CREATE INDEX IF NOT EXISTS idx_links_to ON IncidentLinks (to_incident) WHERE kind != 'rejected';
 
+-- =============================================================================
+-- SystemConfig: System configuration (global key-value store in JSONB)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS SystemConfig (
     key TEXT PRIMARY KEY,
     value JSONB NOT NULL,

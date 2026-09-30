@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idempotency Engine — Core Concepts & Architecture Guide</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" id="prism-dark">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" id="prism-light" disabled>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+<style>
+:root, html[data-theme="dark"] {
+  --bg: #0a0a0f; --bg-elev: #13131c; --bg-code: #0d0d15; --bg-card: #14141e;
+  --bg-sidebar: #08080d; --bg-th: #0f0f17;
+  --border: #22222f; --border-bright: #2e2e40;
+  --text: #e6e6ef; --text-body: #d0d0dc; --text-dim: #9494a8; --text-faint: #6b6b80;
+  --accent: #4a9eff; --accent-soft: rgba(74,158,255,0.08); --accent-soft-hover: rgba(74,158,255,0.06);
+  --accent-2: #a855f7; --success: #10b981; --warn: #f59e0b; --danger: #ef4444;
+  --h1-gradient-from: #fff; --h1-gradient-to: #4a9eff;
+  --inline-code-bg: rgba(74,158,255,0.08); --inline-code-border: rgba(74,158,255,0.15); --inline-code-text: #9dc4ff;
+  --scrollbar: #222; --hover-row: rgba(74,158,255,0.03); --mermaid-bg: #0d0d15; --copy-bg: rgba(255,255,255,0.05);
+}
+html[data-theme="light"] {
+  --bg: #fafafa; --bg-elev: #ffffff; --bg-code: #f5f5f7; --bg-card: #ffffff;
+  --bg-sidebar: #f0f0f3; --bg-th: #f0f0f3;
+  --border: #e5e5ea; --border-bright: #d1d1d6;
+  --text: #1a1a1f; --text-body: #2a2a30; --text-dim: #55555f; --text-faint: #8e8e93;
+  --accent: #0066cc; --accent-soft: rgba(0,102,204,0.08); --accent-soft-hover: rgba(0,102,204,0.06);
+  --accent-2: #8e44ad; --success: #059669; --warn: #d97706; --danger: #dc2626;
+  --h1-gradient-from: #1a1a1f; --h1-gradient-to: #0066cc;
+  --inline-code-bg: rgba(0,102,204,0.08); --inline-code-border: rgba(0,102,204,0.2); --inline-code-text: #0066cc;
+  --scrollbar: #d1d1d6; --hover-row: rgba(0,102,204,0.04); --mermaid-bg: #fafafa; --copy-bg: rgba(0,0,0,0.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  background: var(--bg); color: var(--text);
+  line-height: 1.65; font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
+}
+code, pre, .mono { font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-size: 13px; }
+
+.layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+.sidebar {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  border-right: 1px solid var(--border); padding: 24px 0;
+  background: var(--bg-sidebar); transition: background 0.2s;
+}
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+.sidebar-header {
+  padding: 0 20px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.sidebar-title {
+  font-size: 13px; font-weight: 600; color: var(--text-dim);
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.sidebar nav a {
+  display: block; padding: 7px 20px; color: var(--text-dim);
+  text-decoration: none; font-size: 13px;
+  border-left: 2px solid transparent; transition: all 0.12s;
+}
+.sidebar nav a:hover {
+  color: var(--text); background: var(--accent-soft-hover);
+  border-left-color: var(--accent);
+}
+.sidebar nav a.sub { padding-left: 36px; font-size: 12px; color: var(--text-faint); }
+.toc-section {
+  padding: 12px 20px 4px; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-faint); font-weight: 600;
+}
+
+.theme-toggle {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: transparent; border: 1px solid var(--border-bright);
+  color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.theme-toggle svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+html[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+html[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+html[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+html[data-theme="light"] .theme-toggle .icon-moon { display: block; }
+
+.main { max-width: 980px; padding: 56px 64px 120px; }
+
+h1 {
+  font-size: 38px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px;
+  background: linear-gradient(135deg, var(--h1-gradient-from) 0%, var(--h1-gradient-to) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.subtitle { color: var(--text-dim); font-size: 16px; margin-bottom: 8px; }
+.meta {
+  color: var(--text-faint); font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+  margin-bottom: 40px; padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+h2 {
+  font-size: 24px; font-weight: 700; margin: 64px 0 20px; letter-spacing: -0.01em;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 12px;
+}
+h2 .num { font-family: "JetBrains Mono", monospace; color: var(--accent); font-size: 14px; font-weight: 500; }
+h3 { font-size: 17px; font-weight: 600; margin: 36px 0 14px; color: var(--text); }
+h4 {
+  font-size: 14px; font-weight: 600; margin: 24px 0 10px;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;
+}
+p { margin-bottom: 14px; color: var(--text-body); }
+ul, ol { margin: 12px 0 16px 24px; }
+li { margin-bottom: 6px; color: var(--text-body); }
+strong { color: var(--text); font-weight: 600; }
+html[data-theme="light"] strong { color: #000; }
+em { color: var(--text-dim); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+pre {
+  background: var(--bg-code); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px 20px; overflow-x: auto;
+  margin: 16px 0; position: relative; line-height: 1.55;
+  transition: background 0.2s, border-color 0.2s;
+}
+pre code { background: none; padding: 0; }
+code:not([class*="language-"]) {
+  background: var(--inline-code-bg); border: 1px solid var(--inline-code-border);
+  color: var(--inline-code-text); padding: 1px 6px; border-radius: 4px; font-size: 12.5px;
+}
+pre[data-label]::before {
+  content: attr(data-label); position: absolute; top: 0; right: 0;
+  background: var(--border-bright); color: var(--text-dim);
+  font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+  padding: 4px 10px; border-radius: 0 8px 0 6px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.copy-btn {
+  position: absolute; top: 8px; right: 10px;
+  background: var(--copy-bg); border: 1px solid var(--border-bright);
+  color: var(--text-dim); padding: 3px 8px; border-radius: 4px;
+  font-size: 10px; cursor: pointer; opacity: 0;
+  transition: opacity 0.15s; font-family: "JetBrains Mono", monospace;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+pre:hover .copy-btn { opacity: 1; }
+.copy-btn:hover { background: var(--accent-soft); color: var(--accent); }
+pre[data-label] .copy-btn { top: 32px; }
+
+table {
+  width: 100%; border-collapse: collapse; margin: 18px 0;
+  font-size: 13.5px; border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+}
+th {
+  text-align: left; padding: 10px 14px;
+  background: var(--bg-th); color: var(--text-dim);
+  font-weight: 600; font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-body); vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--hover-row); }
+td code { font-size: 12px; }
+
+.callout {
+  border-left: 3px solid; padding: 14px 18px; margin: 18px 0;
+  border-radius: 0 8px 8px 0; background: rgba(128,128,128,0.04);
+}
+.callout-title {
+  font-weight: 600; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 6px;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout.info { border-color: var(--accent); } .callout.info .callout-title { color: var(--accent); }
+.callout.success { border-color: var(--success); } .callout.success .callout-title { color: var(--success); }
+.callout.warn { border-color: var(--warn); } .callout.warn .callout-title { color: var(--warn); }
+.callout.danger { border-color: var(--danger); } .callout.danger .callout-title { color: var(--danger); }
+
+.concept-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0; }
+.concept-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.concept-card h4 { margin: 0 0 6px; color: var(--accent); font-size: 15px; text-transform: none; letter-spacing: 0; }
+.concept-card p { font-size: 13.5px; color: var(--text-body); margin: 0; line-height: 1.5; }
+
+.mermaid {
+  background: var(--mermaid-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; margin: 20px 0;
+  text-align: center; overflow-x: auto;
+  transition: background 0.2s, border-color 0.2s;
+}
+.mermaid svg { max-width: 100%; height: auto; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { padding: 32px 20px 64px; }
+  .concept-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">Idempotency Core</span>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+  <nav>
+    <div class="toc-section">Concepts</div>
+    <a href="#glossary">01 Glossary &amp; Core Concepts</a>
+    <a href="#concepts-raw" class="sub">Raw Text &amp; Normalization</a>
+    <a href="#concepts-shape" class="sub">Shape Template &amp; Hash</a>
+    <a href="#concepts-anchor" class="sub">Anchor &amp; Variant</a>
+    <a href="#concepts-vector" class="sub">Embedding &amp; Solution</a>
+    <a href="#concepts-link" class="sub">Graph Linking</a>
+
+    <div class="toc-section">Architecture</div>
+    <a href="#relationships">02 Entity Relationships</a>
+    <a href="#transformations">03 String Transformations</a>
+    <a href="#ingestion-flow">04 Ingestion Process Flow</a>
+    <a href="#layer-1" class="sub">L1: Idempotency Gate</a>
+    <a href="#layer-2" class="sub">L2: Deterministic Ordering</a>
+    <a href="#layer-3" class="sub">L3: Normalization</a>
+    <a href="#layer-4" class="sub">L4: Peek DB Check</a>
+    <a href="#layer-5" class="sub">L5: Advisory Lock</a>
+    <a href="#layer-6" class="sub">L6: Database Persist</a>
+
+    <div class="toc-section">Features</div>
+    <a href="#theme-persistence">05 Theme Switcher</a>
+  </nav>
+</aside>
+
+<main class="main">
+<h1>Architecture &amp; Core Concepts</h1>
+<div class="subtitle">Deep-dive technical specification of concepts, string transformations, entity domain, and 6-layer ingestion pipeline.</div>
+<div class="meta">SYSTEM SPECIFICATION &bull; IDEMPOTENCY ENGINE v1 &bull; UPDATED 2026</div>
+
+<!-- SECTION 1 -->
+<h2 id="glossary"><span class="num">01</span> Glossary &amp; Core Concepts</h2>
+<p>The Idempotency Engine is structured around 11 primary domain primitives designed to collapse identical error spikes, discriminate contextual variations, relate cross-system failures, and associate verified solutions.</p>
+
+<div class="concept-grid">
+  <div class="concept-card" id="concepts-raw">
+    <h4>1. Raw Text</h4>
+    <p>The original, unmodified log message, exception stack trace, or standard error string emitted by an application or service prior to any processing or cleanup.</p>
+  </div>
+  <div class="concept-card">
+    <h4>2. Normalization / Canonicalization</h4>
+    <p>The deterministic transformation process that strips or replaces volatile tokens (timestamps, UUIDs, memory addresses, IP addresses, ports, ephemeral paths) with standardized placeholders like <code>&lt;VAR&gt;</code>.</p>
+  </div>
+  <div class="concept-card" id="concepts-shape">
+    <h4>3. Shape Template</h4>
+    <p>The canonical string pattern produced by normalizing raw error text. Represents the structural invariant of an error regardless of runtime dynamic data.</p>
+  </div>
+  <div class="concept-card">
+    <h4>4. Shape Hash</h4>
+    <p>A deterministic 64-bit <code>SHA-256</code> hash computed directly from the canonical Shape Template. Serves as the primary unique key for fast exact-match lookup.</p>
+  </div>
+  <div class="concept-card" id="concepts-anchor">
+    <h4>5. Anchor (ErrorShape)</h4>
+    <p>The root entity in PostgreSQL representing a unique error shape. Holds aggregate metrics (occurrence count, first/last seen timestamps) and links to variants, embeddings, and solutions.</p>
+  </div>
+  <div class="concept-card">
+    <h4>6. Context</h4>
+    <p>Key-value runtime metadata attached to an error event, such as service name, environment, framework version, region, or stack layer.</p>
+  </div>
+  <div class="concept-card">
+    <h4>7. Context Fingerprint</h4>
+    <p>A deterministic hash computed from sorted, key-value context attributes. Differentiates identical error shapes occurring in distinct runtime environments.</p>
+  </div>
+  <div class="concept-card" id="concepts-vector">
+    <h4>8. Variant (ErrorVariant)</h4>
+    <p>A specific contextual instantiation of an <code>ErrorShape</code> paired with a <code>Context Fingerprint</code>. Can optionally store its own domain-specific embedding.</p>
+  </div>
+  <div class="concept-card">
+    <h4>9. Embedding</h4>
+    <p>A dense 1536-dimensional vector generated from the normalized error text. Stored in <code>pgvector</code> columns indexed with HNSW for semantic approximate nearest neighbor (ANN) similarity search.</p>
+  </div>
+  <div class="concept-card">
+    <h4>10. Solution (ErrorSolution)</h4>
+    <p>Resolution guidance, patch descriptions, or automated remediation steps associated with an Anchor or Variant. Supports versioning and success metrics.</p>
+  </div>
+  <div class="concept-card" id="concepts-link">
+    <h4>11. Linking (ErrorLink)</h4>
+    <p>Graph relationships established between distinct error shapes (e.g. parent/child, causer/caused-by, duplicate) calculated via background async sweeps or explicit agent triage.</p>
+  </div>
+</div>
+
+<!-- SECTION 2 -->
+<h2 id="relationships"><span class="num">02</span> Concept &amp; Entity Relationships</h2>
+<p>The diagram below illustrates how incoming raw logs and context metadata flow through normalization and hashing to populate the domain entity model in PostgreSQL.</p>
+
+<div class="mermaid">
+flowchart TD
+    Raw[Raw Error Log & Stack Trace] -->|Text Normalizer| ShapeTmpl[Shape Template]
+    Raw -->|Extract Metadata| ContextDict[Context Key-Values]
+
+    ShapeTmpl -->|SHA-256 Hash| ShapeHash[Shape Hash]
+    ContextDict -->|Canonicalize & Hash| CtxFP[Context Fingerprint]
+
+    ShapeHash -->|Upsert Root| Anchor["ErrorShape (Anchor)\n[shape_hash, occurrence_count]"]
+    ShapeTmpl -->|LLM / Embedding Provider| Vector["pgvector Embedding\n(1536 dimensions)"]
+
+    Anchor -->|1 : N| Variant["ErrorVariant\n[shape_hash + context_fingerprint]"]
+    CtxFP -->|Bind| Variant
+
+    Vector -->|Bind HNSW Index| Anchor
+    Vector -.->|Optional Overrides| Variant
+
+    Anchor -->|1 : N| Solution["ErrorSolution\n[solution_id, patch_version, root_cause]"]
+    Anchor <-->|Graph Links| Link["ErrorLink\n[source_hash, target_hash, relationship_type]"]
+
+    style Raw fill:#1a1a2e,stroke:#4a9eff,color:#e6e6ef
+    style Anchor fill:#1a3d2e,stroke:#10b981,color:#e6e6ef
+    style Variant fill:#2d1b4e,stroke:#a855f7,color:#e6e6ef
+    style Vector fill:#3b2d1a,stroke:#f59e0b,color:#e6e6ef
+    style Solution fill:#1f2937,stroke:#64748b,color:#e6e6ef
+    style Link fill:#1f2937,stroke:#64748b,color:#e6e6ef
+</div>
+
+<!-- SECTION 3 -->
+<h2 id="transformations"><span class="num">03</span> Step-by-Step String Transformations</h2>
+<p>Walkthrough of a raw error line transforming through each normalization stage into hashes, contexts, and vectors.</p>
+
+<h3>1. Raw Error Event Input</h3>
+<p>An unformatted error log arrives from a watcher or API client containing volatile timestamps, IP addresses, ports, and UUIDs:</p>
+<pre data-label="Raw Input Payload"><code class="language-json">{
+  "event_id": "evt_9876543210_abc",
+  "raw_text": "2026-09-26T14:32:10.123Z [ERROR] Failed to connect to DB at 192.168.1.45:5432 after 3000ms. Connection ID: 4f8b9a10-89bc-4d32-90ab-123456789abc",
+  "context": {
+    "service": "payment-api",
+    "env": "production",
+    "region": "us-east-1"
+  }
+}</code></pre>
+
+<h3>2. Text Normalization / Canonicalization</h3>
+<p>The <code>TextNormalizer</code> applies deterministic regex patterns to replace volatile values with canonical <code>&lt;VAR&gt;</code> markers:</p>
+<pre data-label="Normalized Shape Template"><code class="language-text">&lt;TIMESTAMP&gt; [ERROR] Failed to connect to DB at &lt;IP&gt;:&lt;PORT&gt; after &lt;DURATION&gt;ms. Connection ID: &lt;UUID&gt;</code></pre>
+
+<h3>3. Shape Hash Generation</h3>
+<p>The canonical Shape Template is hashed using SHA-256 to produce a 64-bit deterministic shape hash key:</p>
+<pre data-label="Shape Hash Computation"><code class="language-csharp">// C# FingerprintGenerator
+string input = "<TIMESTAMP> [ERROR] Failed to connect to DB at <IP>:<PORT> after <DURATION>ms. Connection ID: <UUID>";
+byte[] hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+string shapeHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+// Output: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code></pre>
+
+<h3>4. Context Canonicalization &amp; Fingerprinting</h3>
+<p>Context attributes are sorted alphabetically by key, formatted as <code>key=value</code> pairs delimited by <code>|</code>, and hashed:</p>
+<pre data-label="Context Fingerprint"><code class="language-text">Canonical String: env=production|region=us-east-1|service=payment-api
+Context Fingerprint: 7d8f3a9e1b2c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e</code></pre>
+
+<h3>5. Vector Embedding Generation</h3>
+<p>When an anchor or variant is newly inserted (Case B or Case C), an embedding request generates a 1536-dimensional floating-point vector:</p>
+<pre data-label="Embedding Payload Vector"><code class="language-json">{
+  "shape_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "dimensions": 1536,
+  "vector_sample": [0.01234, -0.04567, 0.08901, -0.00234, 0.05678, "... 1531 more floats"]
+}</code></pre>
+
+<!-- SECTION 4 -->
+<h2 id="ingestion-flow"><span class="num">04</span> Ingestion Process Flow</h2>
+<p>When a batch of log samples arrives at the API (via <code>POST /v1/ingest</code>), the system executes a 6-layer pipeline designed to maximize throughput, eliminate redundant LLM embedding calls, and prevent Postgres transaction deadlocks.</p>
+
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Client as API Client / Watcher
+    participant L1 as Layer 1: Idempotency Gate
+    participant L2 as Layer 2: Sort Samples
+    participant L3 as Layer 3: Normalizer
+    participant L4 as Layer 4: DB Peek Check
+    participant L5 as Layer 5: Advisory Lock
+    participant L6 as Layer 6: DB Persist & Vector HNSW
+
+    Client->>L1: POST /v1/ingest (Batch Payload)
+    L1->>L1: Insert ProcessedIngests (ON CONFLICT DO NOTHING)
+    alt Already Processed (Conflict hit)
+        L1-->>Client: Skip processing (Return 200 OK / Cached response)
+    else New Ingest Event
+        L1->>L2: Proceed to sample processing
+        L2->>L2: Sort batch items by context_fingerprint ASC
+        L2->>L3: Compute Shape Hash & Context Fingerprint
+        L3->>L4: SELECT 1 FROM ErrorShapes / ErrorVariants (No lock)
+        alt Case A: Shape & Variant exist
+            L4->>L6: Atomic UPDATE occurrence_count (Zero Lock, Zero Embed cost)
+        else Case B / C: New Shape or New Variant
+            L4->>L4: Call IEmbeddingProvider (Compute embedding outside lock)
+            L4->>L5: pg_try_advisory_xact_lock(hashtextextended(...))
+            L5->>L6: INSERT ErrorShapes / ErrorVariants + pgvector HNSW
+            L6-->>Client: 200 OK (Ingest complete)
+        end
+    end
+</div>
+
+<h3 id="layer-1">Layer 1: Idempotency Gate</h3>
+<div class="callout info">
+  <div class="callout-title">Exact-Once Processing</div>
+  <p>Every write transaction inserts the payload's <code>event_id</code> into the <code>ProcessedIngests</code> table using <code>ON CONFLICT DO NOTHING RETURNING event_id</code>. If no row is returned, the event was already processed and execution skips immediately.</p>
+</div>
+
+<pre data-label="Idempotency Gate Query"><code class="language-sql">INSERT INTO ProcessedIngests (event_id, processed_at)
+VALUES (@EventId, NOW())
+ON CONFLICT (event_id) DO NOTHING
+RETURNING event_id;</code></pre>
+
+<h3 id="layer-2">Layer 2: Deterministic Ordering</h3>
+<p>To avoid database deadlocks during multi-item batch inserts across concurrent threads, samples within a batch are sorted deterministically by <code>context_fingerprint ASC</code> before acquiring locks or initiating database transactions.</p>
+
+<h3 id="layer-3">Layer 3: Normalization &amp; Fingerprinting</h3>
+<p>In-memory CPU execution converts raw text to canonical shape templates, calculates the 64-bit Shape Hash, and derives the Context Fingerprint.</p>
+
+<h3 id="layer-4">Layer 4: Peek DB Check</h3>
+<p>Executes a fast, non-locking <code>SELECT</code> query against PostgreSQL to check whether the anchor (Shape Hash) and variant (Context Fingerprint) already exist.</p>
+<ul>
+  <li><strong>Case A (All fingerprints hit)</strong>: The error shape and variant are known. Skip LLM/embedding generation completely (saving time and API cost) and proceed straight to atomic count increment.</li>
+  <li><strong>Case B / Case C (New Shape or Variant)</strong>: Generate the vector embedding <em>before</em> attempting to lock. Never call embedding APIs while holding a database lock!</li>
+</ul>
+
+<h3 id="layer-5">Layer 5: Advisory Lock Discipline</h3>
+<p>For new shapes or variants, acquire a transaction-scoped 64-bit Postgres advisory lock using <code>pg_try_advisory_xact_lock</code> with <code>hashtextextended</code>. The lock releases automatically on <code>COMMIT</code> or <code>ROLLBACK</code>.</p>
+
+<pre data-label="Advisory Lock Acquisition"><code class="language-sql">-- 64-bit transaction-scoped advisory lock key
+SELECT pg_try_advisory_xact_lock(hashtextextended('shape:' || @ShapeHash, 0));</code></pre>
+
+<h3 id="layer-6">Layer 6: Database Persist &amp; Vector HNSW Index</h3>
+<p>Within the short locked transaction, insert the root <code>ErrorShape</code>, the <code>ErrorVariant</code>, and store the 1536-dimensional vector into the <code>pgvector</code> column. PostgreSQL automatically updates the HNSW index for instant semantic retrieval.</p>
+
+<!-- SECTION 5 -->
+<h2 id="theme-persistence"><span class="num">05</span> Interactive Theme Switcher</h2>
+<p>The documentation interface features a fully client-side dark/light theme switcher with state persistence via <code>localStorage</code>.</p>
+
+<div class="callout success">
+  <div class="callout-title">Theme Feature Checklist</div>
+  <p>&check; <code>data-theme="dark"</code> and <code>data-theme="light"</code> attribute toggling on <code>&lt;html&gt;</code> tag.<br>
+  &check; Automatic <code>localStorage</code> key persistence (<code>idem-theme</code>).<br>
+  &check; Dynamic switching between Prism.js dark (Tomorrow) and light theme stylesheets.<br>
+  &check; Automated re-initialization of Mermaid.js diagrams with theme-matched color palettes.</p>
+</div>
+
+<div class="callout info" style="margin-top:32px;">
+  <div class="callout-title">Summary</div>
+  <p><strong>Collapse, Discriminate, Relate, Version.</strong> The Idempotency Engine turns noisy, high-volume error streams into structured, deduplicated, and semantically searchable failure intelligence.</p>
+</div>
+
+</main>
+</div>
+
+<script>
+const html = document.documentElement;
+const toggle = document.getElementById('themeToggle');
+const prismDark = document.getElementById('prism-dark');
+const prismLight = document.getElementById('prism-light');
+
+function applyTheme(theme) {
+  html.setAttribute('data-theme', theme);
+  if (theme === 'light') {
+    if (prismDark) prismDark.disabled = true;
+    if (prismLight) prismLight.disabled = false;
+  } else {
+    if (prismDark) prismDark.disabled = false;
+    if (prismLight) prismLight.disabled = true;
+  }
+  localStorage.setItem('idem-theme', theme);
+  if (window.mermaid) renderMermaid();
+}
+
+function renderMermaid() {
+  const theme = html.getAttribute('data-theme');
+  const mermaidTheme = theme === 'light' ? 'default' : 'dark';
+  const themeVars = theme === 'light' ? {
+    primaryColor: '#ffffff', primaryTextColor: '#1a1a1f',
+    primaryBorderColor: '#0066cc', lineColor: '#0066cc',
+    secondaryColor: '#f0f0f3', tertiaryColor: '#f0f0f3',
+    fontFamily: 'Inter, system-ui, sans-serif', fontSize: '13px'
+  } : {
+    primaryColor: '#1a1a2e', primaryTextColor: '#e6e6ef',
+    primaryBorderColor: '#4a9eff', lineColor: '#4a9eff',
+    secondaryColor: '#2d1b4e', tertiaryColor: '#1a3d2e',
+    fontFamily: 'Inter, system-ui, sans-serif', fontSize: '13px'
+  };
+  document.querySelectorAll('.mermaid').forEach(el => {
+    if (!el.dataset.original) {
+      el.dataset.original = el.textContent.trim();
+    } else {
+      el.removeAttribute('data-processed');
+      el.textContent = el.dataset.original;
+    }
+  });
+  mermaid.initialize({
+    startOnLoad: false, theme: mermaidTheme, themeVariables: themeVars,
+    flowchart: { curve: 'basis', padding: 15 },
+    sequence: { actorMargin: 40, boxMargin: 8, messageFontSize: 12 }
+  });
+  mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+}
+
+const stored = localStorage.getItem('idem-theme');
+const initial = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+applyTheme(initial);
+
+toggle.addEventListener('click', () => {
+  const current = html.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+document.querySelectorAll('pre').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const code = pre.querySelector('code');
+    navigator.clipboard.writeText(code ? code.textContent : pre.textContent);
+    btn.textContent = 'copied';
+    setTimeout(() => btn.textContent = 'copy', 1200);
+  });
+  pre.appendChild(btn);
+});
+</script>
+</body>
+</html>
