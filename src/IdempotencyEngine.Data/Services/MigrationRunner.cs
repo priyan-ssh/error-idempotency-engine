@@ -31,24 +31,42 @@ public class MigrationRunner : IMigrationRunner
     {
         if (string.IsNullOrWhiteSpace(connectionString))
         {
+            _logger.LogWarning("Connection string cannot be null or whitespace.");
             throw new ArgumentException("Connection string cannot be null or whitespace.", nameof(connectionString));
         }
 
-        var scriptsPath = Path.Combine(AppContext.BaseDirectory, "migrations");
-        if (!Directory.Exists(scriptsPath))
+        _logger.LogInformation("Starting database migrations.");
+        try
         {
-            scriptsPath = Path.Combine(Directory.GetCurrentDirectory(), "migrations");
+            var scriptsPath = Path.Combine(AppContext.BaseDirectory, "migrations");
+            if (!Directory.Exists(scriptsPath))
+            {
+                scriptsPath = Path.Combine(Directory.GetCurrentDirectory(), "migrations");
+            }
+
+            EnsureDatabase.For.PostgresqlDatabase(connectionString);
+
+            var upgrader = DeployChanges.To
+                .PostgresqlDatabase(connectionString)
+                .WithScriptsFromFileSystem(scriptsPath)
+                .LogToConsole()
+                .Build();
+
+            var result = upgrader.PerformUpgrade();
+            if (result.Successful)
+            {
+                _logger.LogInformation("Database migrations executed successfully.");
+            }
+            else
+            {
+                _logger.LogError(result.Error, "Database migration failed.");
+            }
+            return result.Successful;
         }
-
-        EnsureDatabase.For.PostgresqlDatabase(connectionString);
-
-        var upgrader = DeployChanges.To
-            .PostgresqlDatabase(connectionString)
-            .WithScriptsFromFileSystem(scriptsPath)
-            .LogToConsole()
-            .Build();
-
-        var result = upgrader.PerformUpgrade();
-        return result.Successful;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception encountered during database migrations.");
+            throw;
+        }
     }
 }
