@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace IdempotencyEngine.Domain.Interfaces;
 
 public interface IFingerprintGenerator

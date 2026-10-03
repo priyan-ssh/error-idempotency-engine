@@ -4,6 +4,10 @@
     <ProjectReference Include="..\IdempotencyEngine.Domain\IdempotencyEngine.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="dbup-postgresql" Version="7.0.1" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
