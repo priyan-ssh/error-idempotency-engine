@@ -1,5 +1,7 @@
 using DbUp;
 using IdempotencyEngine.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdempotencyEngine.Data.Services;
 
@@ -8,11 +10,23 @@ namespace IdempotencyEngine.Data.Services;
 /// </summary>
 public class MigrationRunner : IMigrationRunner
 {
+    private readonly ILogger<MigrationRunner> _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MigrationRunner"/> class with the specified logger.
+    /// </summary>
+    /// <param name="logger"></param>
+    public MigrationRunner(ILogger<MigrationRunner>? logger = null)
+    {
+        _logger = logger ?? NullLogger<MigrationRunner>.Instance;
+    }
+
     /// <summary>
     /// Executes all unapplied SQL migration scripts from the migrations directory against PostgreSQL.
     /// </summary>
-    /// <param name="connectionString">The PostgreSQL connection string.</param>
+    /// <param name="connectionString"></param>
     /// <returns>True if all migrations succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentException"></exception>
     public bool RunMigrations(string connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString))

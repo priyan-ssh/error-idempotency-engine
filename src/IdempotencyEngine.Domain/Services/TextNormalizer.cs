@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using IdempotencyEngine.Domain.Constants;
 using IdempotencyEngine.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdempotencyEngine.Domain.Services;
 
@@ -10,14 +12,17 @@ namespace IdempotencyEngine.Domain.Services;
 public class TextNormalizer : ITextNormalizer
 {
     private readonly IHasher _hasher;
+    private readonly ILogger<TextNormalizer> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TextNormalizer"/> class.
     /// </summary>
     /// <param name="hasher">The hasher instance to use. If null, a default <see cref="Sha256Hasher"/> instance is used.</param>
-    public TextNormalizer(IHasher? hasher = null)
+    /// <param name="logger">The logger instance for logging normalization progress and errors.</param>
+    public TextNormalizer(IHasher? hasher = null, ILogger<TextNormalizer>? logger = null)
     {
         _hasher = hasher ?? new Sha256Hasher();
+        _logger = logger ?? NullLogger<TextNormalizer>.Instance;
     }
 
     /// <summary>

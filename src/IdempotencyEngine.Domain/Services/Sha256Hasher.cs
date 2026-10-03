@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text;
 using IdempotencyEngine.Domain.Constants;
 using IdempotencyEngine.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdempotencyEngine.Domain.Services;
 
@@ -10,6 +12,12 @@ namespace IdempotencyEngine.Domain.Services;
 /// </summary>
 public class Sha256Hasher : IHasher
 {
+    private readonly ILogger<Sha256Hasher> _logger;
+
+    public Sha256Hasher(ILogger<Sha256Hasher>? logger = null)
+    {
+        _logger = logger ?? NullLogger<Sha256Hasher>.Instance;
+    }
     /// <summary>
     /// Computes a SHA256 hash for the given input string and returns it as a lowercase hexadecimal string.
     /// Output - fingerprint hash

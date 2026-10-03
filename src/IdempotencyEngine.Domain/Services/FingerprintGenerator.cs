@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Text.Json;
 using IdempotencyEngine.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IdempotencyEngine.Domain.Services;
 
@@ -10,14 +12,17 @@ namespace IdempotencyEngine.Domain.Services;
 public class FingerprintGenerator : IFingerprintGenerator
 {
     private readonly IHasher _hasher;
+    private readonly ILogger<FingerprintGenerator> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FingerprintGenerator"/> class.
     /// </summary>
     /// <param name="hasher">The hasher instance to use. If null, a default <see cref="Sha256Hasher"/> instance is used.</param>
-    public FingerprintGenerator(IHasher? hasher = null)
+    /// <param name="logger">The logger instance for logging fingerprint generation progress and errors.</param>
+    public FingerprintGenerator(IHasher? hasher=null, ILogger<FingerprintGenerator>? logger=null)
     {
         _hasher = hasher ?? new Sha256Hasher();
+        _logger = logger ?? NullLogger<FingerprintGenerator>.Instance;
     }
 
     /// <summary>
