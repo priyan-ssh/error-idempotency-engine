@@ -248,8 +248,10 @@ td code { font-size: 12px; }
     <a href="#layer-5" class="sub">L5: Advisory Lock</a>
     <a href="#layer-6" class="sub">L6: Database Persist</a>
 
-    <div class="toc-section">Features</div>
-    <a href="#theme-persistence">05 Theme Switcher</a>
+    <div class="toc-section">Ingestion & Retrieval</div>
+    <a href="#ingestion-pipeline">05 Ingestion Breakdown (POST /ingest)</a>
+    <a href="#lookup-pipeline">06 Lookup & Search Mechanics (GET /lookup)</a>
+    <a href="#theme-persistence">07 Interactive Theme Switcher</a>
   </nav>
 </aside>
 
@@ -364,7 +366,7 @@ flowchart TD
 <h3>3. Shape Hash Generation</h3>
 <p>The canonical Shape Template is hashed using SHA-256 to produce a 64-bit deterministic shape hash key:</p>
 <pre data-label="Shape Hash Computation"><code class="language-csharp">// C# FingerprintGenerator
-string input = "<TIMESTAMP> [ERROR] Failed to connect to DB at <IP>:<PORT> after <DURATION>ms. Connection ID: <UUID>";
+string input = "&lt;TIMESTAMP&gt; [ERROR] Failed to connect to DB at &lt;IP&gt;:&lt;PORT&gt; after &lt;DURATION&gt;ms. Connection ID: &lt;UUID&gt;";
 byte[] hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
 string shapeHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
 // Output: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code></pre>
@@ -451,7 +453,115 @@ SELECT pg_try_advisory_xact_lock(hashtextextended('shape:' || @ShapeHash, 0));</
 <p>Within the short locked transaction, insert the root <code>ErrorShape</code>, the <code>ErrorVariant</code>, and store the 1536-dimensional vector into the <code>pgvector</code> column. PostgreSQL automatically updates the HNSW index for instant semantic retrieval.</p>
 
 <!-- SECTION 5 -->
-<h2 id="theme-persistence"><span class="num">05</span> Interactive Theme Switcher</h2>
+<h2 id="ingestion-pipeline"><span class="num">05</span> Ingestion Pipeline Breakdown (<code>POST /ingest</code>)</h2>
+<p>A detailed breakdown of the 4 key stages involved when ingesting new or recurring error events through the <code>POST /ingest</code> endpoint.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Step</th>
+      <th>Stage &amp; Target</th>
+      <th>What</th>
+      <th>Why</th>
+      <th>How</th>
+      <th>By Whom</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1</strong></td>
+      <td><strong>Idempotency Gate</strong><br><code>ProcessedIngests.event_id</code></td>
+      <td>Primary Key (PK) lookup and insertion on <code>ProcessedIngests</code>.</td>
+      <td>Catch HTTP retries, client network replay loops, and duplicate event transmissions before processing.</td>
+      <td><pre data-label="SQL"><code class="language-sql">INSERT INTO ProcessedIngests (event_id, processed_at)
+VALUES (@EventId, NOW())
+ON CONFLICT (event_id) DO NOTHING
+RETURNING event_id;</code></pre></td>
+      <td>Ingest API / Watcher / CLI</td>
+    </tr>
+    <tr>
+      <td><strong>2</strong></td>
+      <td><strong>Peek DB Check</strong><br><code>shape_hash</code> + <code>context_fingerprint</code></td>
+      <td>Query the database for matching Anchor (<code>shape_hash</code>) and Variant (<code>context_fingerprint</code>).</td>
+      <td>Case A fast path. If found, execute an atomic <code>UPDATE occurrence_count = count + 1</code>. Zero locking, zero embedding API cost.</td>
+      <td><pre data-label="SQL"><code class="language-sql">SELECT pi.id AS anchor_id, iv.id AS variant_id
+FROM ProcessedIncidents pi
+JOIN IncidentVariants iv ON iv.incident_id = pi.id
+WHERE pi.kind = @Kind AND pi.domain = @Domain
+  AND pi.shape_hash = @ShapeHash
+  AND iv.context_fingerprint = @ContextFingerprint;</code></pre></td>
+      <td>Ingest API</td>
+    </tr>
+    <tr>
+      <td><strong>3</strong></td>
+      <td><strong>Advisory Lock Acquisition</strong><br>64-bit Transaction Scope</td>
+      <td>Acquire 64-bit transaction-scoped PostgreSQL advisory lock via <code>pg_try_advisory_xact_lock</code>.</td>
+      <td>Prevents concurrent thread race conditions on new Anchor/Variant inserts without blocking reads. Auto-releases on COMMIT/ROLLBACK.</td>
+      <td><pre data-label="SQL"><code class="language-sql">SELECT pg_try_advisory_xact_lock(
+  hashtextextended(@Kind || ':' || @Domain || ':' || @ShapeHash || ':' || @ShapeVersion, 0)
+);</code></pre></td>
+      <td>Ingest API (<code>AdvisoryLockRepository</code>)</td>
+    </tr>
+    <tr>
+      <td><strong>4</strong></td>
+      <td><strong>Vector Embedding &amp; DB Persist</strong><br>HNSW Storage</td>
+      <td>Generate dense vector embeddings (384 dimensions) and insert Anchor / Variant records.</td>
+      <td>Persist new issue structural data and populate the <code>pgvector</code> HNSW index for future semantic retrieval.</td>
+      <td>Local embedding model execution followed by Npgsql/Dapper transactional <code>INSERT</code> statements.</td>
+      <td>Ingest API</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- SECTION 6 -->
+<h2 id="lookup-pipeline"><span class="num">06</span> Lookup &amp; Search Mechanics (<code>GET /lookup</code>)</h2>
+<p>The lookup engine resolves incoming errors and queries across a 3-tier cascade to deliver instant resolution text or nearest matching failure patterns.</p>
+
+<div class="concept-grid">
+  <div class="concept-card" style="grid-column: span 2;">
+    <h4>Level 1: EXACT MATCH (<code>shape_hash</code> AND <code>context_fingerprint</code>)</h4>
+    <p><strong>What:</strong> Single SQL query round-trip combining <code>shape_hash</code> AND <code>context_fingerprint</code> via <code>LEFT JOIN</code>s to evaluate Anchor, Variant, and Solution matching in a single database hit.<br>
+    <strong>Why:</strong> Provides instant exact match retrieval with zero AI cost or latency, while determining which fallback level is required if an exact match is incomplete.<br>
+    <strong>How:</strong> Single combined SQL query round-trip:</p>
+    <pre data-label="Level 1 Combined Query"><code class="language-sql">SELECT a.id AS anchor_id, v.id AS variant_id, s.solution_text
+FROM ProcessedIncidents a
+LEFT JOIN IncidentVariants v
+  ON v.incident_id = a.id
+ AND v.context_fingerprint = @contextFingerprint
+LEFT JOIN VariantSolutions s
+  ON s.variant_id = v.id
+ AND s.superseded_at IS NULL
+WHERE a.kind = @kind
+  AND a.domain = @domain
+  AND a.shape_hash = @shapeHash;</code></pre>
+    <p style="margin-top: 10px;"><strong>3 Branch Outcomes:</strong></p>
+    <ul style="margin: 6px 0 10px 20px;">
+      <li><strong>Both match:</strong> <code>anchor_id</code> + <code>variant_id</code> returned &rarr; Instant solution (0ms, 0 AI calls).</li>
+      <li><strong>Anchor matches, Variant misses:</strong> <code>anchor_id</code> returned, <code>variant_id</code> NULL &rarr; Fallback to Level 2 (Variant KNN).</li>
+      <li><strong>Zero rows returned:</strong> Anchor misses &rarr; Fallback to Level 3 (Anchor ANN).</li>
+    </ul>
+    <p><strong>By Whom:</strong> Ingest API / Lookup engine / MCP Server.</p>
+  </div>
+
+  <div class="concept-card">
+    <h4>Level 2: VARIANT KNN (<code>context_embedding</code>)</h4>
+    <p><strong>What:</strong> K-Nearest Neighbor (KNN) vector search within variants of the matched Anchor.<br>
+    <strong>Why:</strong> Surface the nearest environment/context variant when exact context fingerprint misses.<br>
+    <strong>How:</strong> Vector distance search ordered by cosine similarity:<br><code>ORDER BY context_embedding &lt;=&gt; $query_embedding LIMIT 1</code><br>
+    <strong>By Whom:</strong> Ingest API / Lookup engine.</p>
+  </div>
+
+  <div class="concept-card">
+    <h4>Level 3: ANCHOR ANN (<code>error_embedding</code> HNSW)</h4>
+    <p><strong>What:</strong> Approximate Nearest Neighbor (ANN) vector search across ALL anchors in the domain using HNSW index.<br>
+    <strong>Why:</strong> Case 2 (Relate) — surface solutions for semantically identical errors with different raw wordings.<br>
+    <strong>How:</strong> Cosine distance search across HNSW indexed error embeddings:<br><code>ORDER BY error_embedding &lt;=&gt; $query_embedding LIMIT 1</code><br>
+    <strong>By Whom:</strong> Ingest API / Lookup engine.</p>
+  </div>
+</div>
+
+<!-- SECTION 7 -->
+<h2 id="theme-persistence"><span class="num">07</span> Interactive Theme Switcher</h2>
 <p>The documentation interface features a fully client-side dark/light theme switcher with state persistence via <code>localStorage</code>.</p>
 
 <div class="callout success">
