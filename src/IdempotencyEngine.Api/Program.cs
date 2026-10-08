@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using IdempotencyEngine.Data.Abstractions;
 using IdempotencyEngine.Data.Services;
 using IdempotencyEngine.Domain.Interfaces;
+using IdempotencyEngine.Domain.Options;
 using IdempotencyEngine.Domain.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,13 +16,22 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
+// Configure Options from appsettings.json
+builder.Services.Configure<EmbeddingOptions>(
+    builder.Configuration.GetSection("EmbeddingOptions"));
+
+builder.Services.Configure<OnnxHardwareOptions>(
+    builder.Configuration.GetSection("OnnxHardwareOptions"));
+
 // Register Domain Services
 builder.Services.AddSingleton<IHasher, Sha256Hasher>();
 builder.Services.AddSingleton<ITextNormalizer, TextNormalizer>();
 builder.Services.AddSingleton<IFingerprintGenerator, FingerprintGenerator>();
 
-// Register Data Services
+// Register Data Services & Embedding Infrastructure
 builder.Services.AddTransient<IMigrationRunner, IdempotencyEngine.Data.Services.MigrationRunner>();
+builder.Services.AddSingleton<IOnnxSessionOptionsFactory, ConfigurableOnnxSessionOptionsFactory>();
+builder.Services.AddSingleton<IEmbeddingProvider, OnnxEmbeddingProvider>();
 
 // Add Controllers
 builder.Services.AddControllers();
