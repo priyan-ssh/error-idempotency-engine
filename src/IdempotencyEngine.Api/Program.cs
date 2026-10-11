@@ -1,8 +1,4 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using IdempotencyEngine.Api.Logging;
 using IdempotencyEngine.Data.Abstractions;
 using IdempotencyEngine.Data.Services;
 using IdempotencyEngine.Domain.Interfaces;
@@ -15,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+builder.Logging.AddEventSourceLogger();
+builder.Logging.AddFileLog("logs/idempotency-engine.log");
 
 // Configure Options from appsettings.json
 builder.Services.Configure<EmbeddingOptions>(

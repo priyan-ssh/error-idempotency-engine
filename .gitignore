@@ -17,6 +17,12 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# Runtime binaries, native libraries & models
+src/IdempotencyEngine.Data/runtimes/
+src/IdempotencyEngine.Data/Runtimes/
+src/IdempotencyEngine.Data/models/
+src/IdempotencyEngine.Data/Models/
+
 # Publish output
 publish/
 **/publish/
@@ -140,6 +146,8 @@ Desktop.ini
 # -----------------------------------------------------------------------------
 # Scratch & Temporary
 # -----------------------------------------------------------------------------
+logs/
+*.log
 scratch/
 tmp/
 temp/
