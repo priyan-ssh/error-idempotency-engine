@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace IdempotencyEngine.Domain.Dtos;
@@ -9,6 +8,9 @@ public record IngestSample(
 
     [Required(ErrorMessage = "RawText is required.")]
     string RawText,
+
+    string? Kind = null,
+    string? Domain = null,
 
     IReadOnlyDictionary<string, object>? Context = null,
 

@@ -11,15 +11,18 @@ namespace IdempotencyEngine.Data.Services.Incident;
 public class IncidentReadRepository : IIncidentReadRepository
 {
     private readonly IdempotencyDbContext _dbContext;
+    private readonly IEmbeddingProvider _embeddingProvider;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="IncidentReadRepository"/> class with the specified database context.
+    /// Initializes a new instance of the <see cref="IncidentReadRepository"/> class with the specified database context and embedding provider.
     /// </summary>
     /// <param name="dbContext"></param>
+    /// <param name="embeddingProvider"></param>
     /// <exception cref="ArgumentNullException"></exception>
-    public IncidentReadRepository(IdempotencyDbContext dbContext)
+    public IncidentReadRepository(IdempotencyDbContext dbContext, IEmbeddingProvider embeddingProvider)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _embeddingProvider = embeddingProvider ?? throw new ArgumentNullException(nameof(embeddingProvider));
     }
 
     /// <summary>
@@ -48,13 +51,15 @@ public class IncidentReadRepository : IIncidentReadRepository
     /// <returns>The incident if found, otherwise null.</returns>
     public async Task<ProcessedIncident?> GetIncidentByShapeAsync(string kind, string domain, string shapeHash, string shapeVersion, CancellationToken cancellationToken = default)
     {
+        var activeModel = _embeddingProvider.ModelName;
         return await _dbContext.ProcessedIncidents
             .AsNoTracking()
             .FirstOrDefaultAsync(i => 
                 i.Kind == kind &&
                 i.Domain == domain &&
                 i.ShapeHash == shapeHash &&
-                i.ShapeVersion == shapeVersion, cancellationToken)
+                i.ShapeVersion == shapeVersion &&
+                i.EmbeddingModel == activeModel, cancellationToken)
             .ConfigureAwait(false);
     }
 }

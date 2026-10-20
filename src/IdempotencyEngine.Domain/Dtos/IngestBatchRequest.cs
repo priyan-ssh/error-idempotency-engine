@@ -1,14 +1,15 @@
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace IdempotencyEngine.Domain.Dtos;
 
 public record IngestBatchRequest(
+    string? BatchId,
+
     [Required(ErrorMessage = "Kind is required.")]
-    string Kind,
+    string? Kind,
 
     [Required(ErrorMessage = "Domain is required.")]
-    string Domain,
+    string? Domain,
 
     string? Origin,
     string? RulesHash,

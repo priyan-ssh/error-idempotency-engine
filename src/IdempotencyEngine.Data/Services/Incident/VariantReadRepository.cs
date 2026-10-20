@@ -2,6 +2,7 @@ using IdempotencyEngine.Data.DbContexts;
 using IdempotencyEngine.Domain.Entities;
 using IdempotencyEngine.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
 
 namespace IdempotencyEngine.Data.Services.Incident;
 
@@ -27,8 +28,16 @@ public class VariantReadRepository : IVariantReadRepository
     /// <returns>The nearest variant if found, otherwise null.</returns>
     public async Task<VariantKNNResult?> FindNearestVariantAsync(Guid incidentId, float[] contextVector, string activeModel, CancellationToken ct = default)
     {
-        //TODO: Implement KNN search logic here. This is a placeholder for the actual implementation.
-        throw new NotImplementedException();
+        var vector = new Vector(contextVector);
+        var results = await _dbContext.Database
+            .SqlQueryRaw<VariantKNNResult>(
+                "SELECT id AS VariantId, incident_id AS IncidentId, (context_embedding <=> {0}) AS Distance FROM IncidentVariants WHERE incident_id = {1} AND embedding_model = {2} ORDER BY context_embedding <=> {0} ASC LIMIT 1",
+                vector, incidentId, activeModel)
+            .AsNoTracking()
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return results.FirstOrDefault();
     }
 
     /// <summary>
@@ -40,11 +49,15 @@ public class VariantReadRepository : IVariantReadRepository
     /// <returns>The incident variant if found, otherwise null.</returns>
     public async Task<IncidentVariant?> GetVariantByFingerprintAsync(Guid incidentId, IEnumerable<string> contextFingerprint, CancellationToken cancellationToken = default)
     {
+        var fingerprintList = contextFingerprint.ToList();
+        var fp = fingerprintList.FirstOrDefault();
+        if (fp == null) return null;
+
         return await _dbContext.IncidentVariants
             .AsNoTracking()
             .FirstOrDefaultAsync(v => 
                 v.IncidentId == incidentId &&
-                v.ContextFingerprint.Equals(contextFingerprint), cancellationToken)
+                v.ContextFingerprint == fp, cancellationToken)
             .ConfigureAwait(false);
     }
 

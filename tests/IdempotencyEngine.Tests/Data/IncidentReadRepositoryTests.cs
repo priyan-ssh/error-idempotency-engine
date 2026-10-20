@@ -3,6 +3,7 @@ using IdempotencyEngine.Data.DbContexts;
 using IdempotencyEngine.Data.Services.Incident;
 using IdempotencyEngine.Domain.Entities;
 using IdempotencyEngine.Domain.Interfaces;
+using IdempotencyEngine.Tests.Mocks;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -23,7 +24,8 @@ public class IncidentReadRepositoryTests
     public async Task GetIncidentByIdAsync_WhenIncidentExists_ReturnsIncident()
     {
         using var dbContext = CreateInMemoryDbContext();
-        var repository = new IncidentReadRepository(dbContext);
+        IEmbeddingProvider embeddingProvider = new MockEmbeddingProvider("all-MiniLM-L6-v2");
+        var repository = new IncidentReadRepository(dbContext, embeddingProvider);
 
         var incidentId = Guid.NewGuid();
         var incident = new ProcessedIncident(
@@ -55,7 +57,8 @@ public class IncidentReadRepositoryTests
     public async Task GetIncidentByShapeAsync_WhenIncidentExists_ReturnsIncident()
     {
         using var dbContext = CreateInMemoryDbContext();
-        var repository = new IncidentReadRepository(dbContext);
+        IEmbeddingProvider embeddingProvider = new MockEmbeddingProvider("all-MiniLM-L6-v2");
+        var repository = new IncidentReadRepository(dbContext, embeddingProvider);
 
         var incidentId = Guid.NewGuid();
         var incident = new ProcessedIncident(
@@ -85,7 +88,8 @@ public class IncidentReadRepositoryTests
     public async Task GetIncidentByIdAsync_WhenIncidentDoesNotExist_ReturnsNull()
     {
         using var dbContext = CreateInMemoryDbContext();
-        var repository = new IncidentReadRepository(dbContext);
+        IEmbeddingProvider embeddingProvider = new MockEmbeddingProvider("all-MiniLM-L6-v2");
+        var repository = new IncidentReadRepository(dbContext, embeddingProvider);
 
         var result = await repository.GetIncidentByIdAsync(Guid.NewGuid());
 
