@@ -1,7 +1,7 @@
 ---
 description: Independent code review. Read-only on source; writes REVIEW.md only.
 mode: all
-model: google/gemini-3.1-pro-preview
+model: google/antigravity-gemini-3-flash
 permission:
   read: allow
   glob: allow

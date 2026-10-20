@@ -1,7 +1,7 @@
 ---
 description: Produces a concrete, file-specific implementation plan. Writes docs only.
 mode: all
-model: google/gemini-3.1-pro-preview
+model: google/antigravity-gemini-3-flash
 permission:
   read: allow
   glob: allow
