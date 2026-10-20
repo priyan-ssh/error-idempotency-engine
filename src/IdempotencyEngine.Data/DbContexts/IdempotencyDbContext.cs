@@ -1,7 +1,7 @@
 using IdempotencyEngine.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace IdempotencyEngine.Data;
+namespace IdempotencyEngine.Data.DbContexts;
 
 /// <summary>
 /// EF Core DbContext configured strictly for READ-ONLY queries.

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.ML.OnnxRuntime;
 
-namespace IdempotencyEngine.Data.Services;
+namespace IdempotencyEngine.Data.Services.Onnx;
 
 /// <summary>
 /// Factory for creating ONNX SessionOptions based on the configured hardware execution provider (CPU, DirectML, OpenVINO).

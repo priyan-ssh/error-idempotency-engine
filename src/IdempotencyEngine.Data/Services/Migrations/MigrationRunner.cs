@@ -3,7 +3,7 @@ using IdempotencyEngine.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace IdempotencyEngine.Data.Services;
+namespace IdempotencyEngine.Data.Services.Migrations;
 
 /// <summary>
 /// Executes PostgreSQL database schema migrations using DbUp.

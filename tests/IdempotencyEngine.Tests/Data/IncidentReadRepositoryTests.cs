@@ -1,5 +1,6 @@
 using FluentAssertions;
-using IdempotencyEngine.Data;
+using IdempotencyEngine.Data.DbContexts;
+using IdempotencyEngine.Data.Services.Incident;
 using IdempotencyEngine.Domain.Entities;
 using IdempotencyEngine.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;

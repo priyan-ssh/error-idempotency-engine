@@ -23,7 +23,12 @@ src/IdempotencyEngine.Data/Runtimes/
 src/IdempotencyEngine.Data/models/
 src/IdempotencyEngine.Data/Models/
 
-# Publish output
+# Personal Q&A / Dev logs
+docs/PersonalQaLog.html
+
+# Personal documentation (private repo)
+/personal/
+
 publish/
 **/publish/
 

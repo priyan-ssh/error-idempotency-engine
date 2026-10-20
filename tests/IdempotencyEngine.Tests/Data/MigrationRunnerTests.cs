@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FluentAssertions;
-using IdempotencyEngine.Data.Services;
+using IdempotencyEngine.Data.Services.Migrations;
 using Microsoft.Extensions.Logging;
 using Xunit;
 

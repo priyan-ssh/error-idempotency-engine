@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
-namespace IdempotencyEngine.Data.Services;
+namespace IdempotencyEngine.Data.Services.Onnx;
 
 /// <summary>
 /// Production embedding provider that generates 384-dimensional vector embeddings using an ONNX Runtime model.

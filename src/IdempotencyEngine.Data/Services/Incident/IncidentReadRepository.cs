@@ -1,8 +1,9 @@
-using IdempotencyEngine.Data;
+using IdempotencyEngine.Data.DbContexts;
 using IdempotencyEngine.Domain.Entities;
+using IdempotencyEngine.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace IdempotencyEngine.Domain.Interfaces;
+namespace IdempotencyEngine.Data.Services.Incident;
 
 /// <summary>
 /// Represents a repository for reading incidents from the database.

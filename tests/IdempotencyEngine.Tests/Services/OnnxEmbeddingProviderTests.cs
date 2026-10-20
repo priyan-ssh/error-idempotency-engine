@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using IdempotencyEngine.Tests.Logging;
 using IdempotencyEngine.Data.Abstractions;
-using IdempotencyEngine.Data.Services;
+using IdempotencyEngine.Data.Services.Onnx;
 using IdempotencyEngine.Domain.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

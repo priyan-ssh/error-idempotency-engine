@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using FluentAssertions;
-using IdempotencyEngine.Data;
-using IdempotencyEngine.Data.Services;
+using IdempotencyEngine.Data.DbContexts;
+using IdempotencyEngine.Data.Services.Incident;
 using IdempotencyEngine.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
