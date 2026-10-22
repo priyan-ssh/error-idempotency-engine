@@ -1256,7 +1256,19 @@ MCP is a **subset** of the API, reshaped as agent tools. It is not a gateway.
 
 ---
 
-## 15. Chosen defaults
+## 15. Category 1 Open Questions & Locked Decisions (#1–#12)
+
+### Category 1 Open Questions (Core & Ingestion Architecture)
+1. **Should watcher batch buffering be per-domain or global?**  
+   *Resolution:* Per-domain 5-second window. Ensures domain-specific isolation and independent rate tuning.
+2. **How should lock contention be handled by API clients?**  
+   *Resolution:* Return HTTP `503 Service Unavailable` with `Retry-After: 1` header upon advisory lock timeout (default 2,000ms budget).
+3. **Should write repositories use EF Core or Dapper?**  
+   *Resolution:* EF Core is restricted strictly to read-only queries (`AsNoTracking()`). Write repositories and the ingestion critical section use raw SQL via Dapper and `NpgsqlCommand`.
+4. **How are rule versions managed across domains?**  
+   *Resolution:* Each domain maintains its own `shape_version` in the `Domains` table, allowing rules to be bumped without invalidating historical anchors.
+
+### Locked Decisions (#1–#12)
 
 | # | Decision | Revisit if |
 |---|---|---|

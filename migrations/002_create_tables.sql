@@ -23,12 +23,12 @@ CREATE TABLE IF NOT EXISTS Domains (
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS ProcessedIncidents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kind TEXT NOT NULL CHECK (kind IN ('log_error', 'exception', 'panic', 'build_failure', 'test_failure', 'custom')),
+    kind TEXT NOT NULL CHECK (kind IN ('error', 'problem', 'decision')),
     domain TEXT NOT NULL REFERENCES Domains(name),
     shape_hash TEXT NOT NULL,
     shape_version TEXT NOT NULL DEFAULT 'v1',
     shape_template TEXT NOT NULL,
-    origin TEXT,
+    origin TEXT NOT NULL CHECK (origin IN ('watcher', 'agent', 'human', 'dashboard')),
     error_embedding VECTOR(384) NOT NULL,
     embedding_model TEXT NOT NULL DEFAULT 'all-MiniLM-L6-v2',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
